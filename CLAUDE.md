@@ -11,8 +11,15 @@ Cloudflare Worker written in TypeScript with Hono + `hono/jsx` server rendering 
 - `npm run deploy` — deploy to workers.dev
 - `npm run types` — regenerate `worker-configuration.d.ts` only
 - `npm run db:migrate:local` / `npm run db:migrate:remote` — apply `migrations/*.sql` to the local or production D1 (`pipeflick-db`)
+- `npm run secrets:push` — after filling `.dev.vars`, push every line in it as a Worker secret (`wrangler secret bulk .dev.vars`); keep `.dev.vars` to real secrets only, no local toggles
 
 Deployed at: https://pipeflick.your-subdomain.workers.dev
+
+After any deploy, open `/health` first (or `/health.json` for scripts): it round-trips a timestamp through D1 and shows each secret as set / not set.
+
+### Secrets
+
+The Worker needs `OPENAI_API_KEY`, `FIREFLIES_API_KEY` and `METRICOOL_USER_TOKEN` (names declared in `src/env.ts`, template in `.dev.vars.example`). Values live in exactly two places: `.dev.vars` locally (gitignored, read by `wrangler dev`) and Worker secrets remotely (`npm run secrets:push`). Never store them in D1, in `wrangler.jsonc` `vars`, or in any committed file, and never render, log or prefix-print a value; `/health` only reports presence. Do not run `wrangler secret bulk .env` — that file belongs to an unrelated tool.
 
 `logs/infinity-rules-mcp.log` is noise from an unrelated Pega MCP plugin and `cache/rag_queries/` is empty; neither belongs to this project.
 

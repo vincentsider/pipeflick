@@ -8,7 +8,8 @@
     "types": "wrangler types",
     "check": "wrangler types && tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply pipeflick-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply pipeflick-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply pipeflick-db --remote",
+    "secrets:push": "wrangler secret bulk .dev.vars"
   },
   "dependencies": {
     "hono": "^4.13.0"
