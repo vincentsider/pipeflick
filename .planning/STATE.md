@@ -52,20 +52,21 @@ Recent decisions affecting current work:
 - 01-01: Worker is live at https://pipeflick.your-subdomain.workers.dev; D1 `pipeflick-db` id `YOUR_D1_DATABASE_ID`, region WEUR
 - 01-02: Access app created in the Cloudflare dashboard (Workers & Pages → pipeflick → Settings → Access), not via `scripts/create-access-app.sh`; no Access-scoped API token exists. Zero Trust team `your-team` (auto-generated), team domain `your-team.cloudflareaccess.com`, app AUD `YOUR_ACCESS_AUD`
 - 01-02: `ctx.access` works with the hostname-based app; jose JWT fallback not needed. Every route sits behind `app.use("*", requireAccess)`; read the user as `c.get("email")`. Local dev identity comes from `access.dev` in wrangler.jsonc
+- 01-03: Zernio replaces Metricool as the scheduler; the secret is ZERNIO_USER_TOKEN (not METRICOOL_USER_TOKEN). Phase 5 must be re-researched and re-planned against the Zernio API before execution. ROADMAP/REQUIREMENTS/PROJECT still say Metricool; the orchestrator updates them at phase completion
 
 ### Pending Todos
 
-None yet.
+- Phase 5: re-research and re-plan against the Zernio API (Metricool is gone); update ROADMAP.md, REQUIREMENTS.md and PROJECT.md Metricool references at Phase 1 completion
 
 ### Blockers/Concerns
 
 - Phase 1 (resolved in 01-02): Zero Trust enabled and the Worker protected via the dashboard; `ctx.access` confirmed working, no jose fallback
 - Phase 2 (follow-up): confirm the dashboard Access policy is an explicit email allow-list (owner@example.com, owner.alt@example.com) rather than the default account-wide rule before real transcripts are imported
 - Phase 3: Worker request time limits may not fit several OpenAI calls in one request; research before planning
-- Phase 5: confirm the Metricool API is available on Vincent's plan and supports LinkedIn drafts
+- Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
 ## Session Continuity
 
-Last session: 2026-09-14 21:13 UTC
-Stopped at: Completed 01-02-PLAN.md; 01-03 next
+Last session: 2026-09-14
+Stopped at: 01-03 Task 2 complete (secrets pushed, deployed); awaiting human-verify of /health (Task 3)
 Resume file: None
