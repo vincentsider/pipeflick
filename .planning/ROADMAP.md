@@ -31,11 +31,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. OpenAI, Fireflies and Metricool keys are Worker secrets and the health page shows which are set without revealing values
 **Research**: Likely (first Cloudflare deployment, framework choice)
 **Research topics**: Cloudflare Access policy for a Worker route and how to validate the Access JWT in the Worker; D1 migrations with wrangler; server-rendered Worker framework choice (Hono vs plain fetch handler); local dev with wrangler dev and a local D1
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Scaffold Worker project, D1 schema and migrations, local dev, first deploy
-- [ ] 01-02: Cloudflare Access gate, secrets wiring, health page
+- [ ] 01-01: Scaffold Hono Worker, D1 database and settings migration, local dev, first deploy
+- [ ] 01-02: Cloudflare Access gate (fail-closed middleware, hostname Access app, login verified)
+- [ ] 01-03: Worker secrets and health page (DB round-trip, secret presence without values)
 
 ### Phase 2: Voice Sources
 **Goal**: The executive's own words are in the database: filtered Fireflies transcripts and pasted past posts
@@ -111,7 +112,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/2 | Not started | - |
+| 1. Foundation | 0/3 | Planned | - |
 | 2. Voice Sources | 0/2 | Not started | - |
 | 3. Drafting | 0/2 | Not started | - |
 | 4. Approval Gate | 0/2 | Not started | - |
