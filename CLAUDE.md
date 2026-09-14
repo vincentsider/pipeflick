@@ -19,7 +19,7 @@ After any deploy, open `/health` first (or `/health.json` for scripts): it round
 
 ### Secrets
 
-The Worker needs `OPENAI_API_KEY`, `FIREFLIES_API_KEY` and `METRICOOL_USER_TOKEN` (names declared in `src/env.ts`, template in `.dev.vars.example`). Values live in exactly two places: `.dev.vars` locally (gitignored, read by `wrangler dev`) and Worker secrets remotely (`npm run secrets:push`). Never store them in D1, in `wrangler.jsonc` `vars`, or in any committed file, and never render, log or prefix-print a value; `/health` only reports presence. Do not run `wrangler secret bulk .env` — that file belongs to an unrelated tool.
+The Worker needs `OPENAI_API_KEY`, `FIREFLIES_API_KEY` and `ZERNIO_USER_TOKEN` (names declared in `src/env.ts`, template in `.dev.vars.example`). Values live in exactly two places: `.dev.vars` locally (gitignored, read by `wrangler dev`) and Worker secrets remotely (`npm run secrets:push`). Never store them in D1, in `wrangler.jsonc` `vars`, or in any committed file, and never render, log or prefix-print a value; `/health` only reports presence. Do not run `wrangler secret bulk .env` — that file belongs to an unrelated tool.
 
 `logs/infinity-rules-mcp.log` is noise from an unrelated Pega MCP plugin and `cache/rag_queries/` is empty; neither belongs to this project.
 
@@ -41,7 +41,7 @@ Feed in one meeting transcript or voice note plus two or three chosen competitor
 
 ### Explicitly out of scope for the pilot
 
-Auto-publishing (with or without approval), AI infographics/branding, human-editor touch-up tooling, multi-client SaaS/billing/onboarding, paid ads, comment or DM automation, any platform scraping. If publishing is ever needed, route it through an approved scheduler (Metricool or Publer) rather than posting directly to LinkedIn.
+Auto-publishing (with or without approval), AI infographics/branding, human-editor touch-up tooling, multi-client SaaS/billing/onboarding, paid ads, comment or DM automation, any platform scraping. If publishing is ever needed, route it through the approved scheduler (Zernio) rather than posting directly to LinkedIn.
 
 ## Success criteria the code must serve
 

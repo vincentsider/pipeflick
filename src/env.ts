@@ -3,7 +3,7 @@
  * `.dev.vars` locally (gitignored) and in Worker secrets remotely, never in
  * D1 or committed files. Only presence (set / not set) is ever rendered.
  */
-export const SECRET_NAMES = ["OPENAI_API_KEY", "FIREFLIES_API_KEY", "METRICOOL_USER_TOKEN"] as const;
+export const SECRET_NAMES = ["OPENAI_API_KEY", "FIREFLIES_API_KEY", "ZERNIO_USER_TOKEN"] as const;
 
 export type SecretName = (typeof SECRET_NAMES)[number];
 
