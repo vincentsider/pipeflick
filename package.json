@@ -1,0 +1,20 @@
+{
+  "name": "pipeflick",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "check": "wrangler types && tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply pipeflick-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply pipeflick-db --remote"
+  },
+  "dependencies": {
+    "hono": "^4.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "wrangler": "^4.131.0"
+  }
+}
