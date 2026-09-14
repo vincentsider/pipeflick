@@ -109,37 +109,37 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VOICE-01 | — | Pending |
-| VOICE-02 | — | Pending |
-| VOICE-03 | — | Pending |
-| VOICE-04 | — | Pending |
-| VOICE-05 | — | Pending |
-| VOICE-06 | — | Pending |
-| OUTL-01 | — | Pending |
-| OUTL-02 | — | Pending |
-| DRAFT-01 | — | Pending |
-| DRAFT-02 | — | Pending |
-| DRAFT-03 | — | Pending |
-| DRAFT-04 | — | Pending |
-| DRAFT-05 | — | Pending |
-| APPR-01 | — | Pending |
-| APPR-02 | — | Pending |
-| APPR-03 | — | Pending |
-| APPR-04 | — | Pending |
-| APPR-05 | — | Pending |
-| APPR-06 | — | Pending |
-| SCHED-01 | — | Pending |
-| SCHED-02 | — | Pending |
-| SCHED-03 | — | Pending |
-| PLAT-01 | — | Pending |
-| PLAT-02 | — | Pending |
-| PLAT-03 | — | Pending |
+| VOICE-01 | Phase 2 | Pending |
+| VOICE-02 | Phase 2 | Pending |
+| VOICE-03 | Phase 2 | Pending |
+| VOICE-04 | Phase 2 | Pending |
+| VOICE-05 | Phase 2 | Pending |
+| VOICE-06 | Phase 2 | Pending |
+| OUTL-01 | Phase 3 | Pending |
+| OUTL-02 | Phase 3 | Pending |
+| DRAFT-01 | Phase 3 | Pending |
+| DRAFT-02 | Phase 3 | Pending |
+| DRAFT-03 | Phase 3 | Pending |
+| DRAFT-04 | Phase 4 | Pending |
+| DRAFT-05 | Phase 3 | Pending |
+| APPR-01 | Phase 4 | Pending |
+| APPR-02 | Phase 4 | Pending |
+| APPR-03 | Phase 4 | Pending |
+| APPR-04 | Phase 4 | Pending |
+| APPR-05 | Phase 4 | Pending |
+| APPR-06 | Phase 4 | Pending |
+| SCHED-01 | Phase 5 | Pending |
+| SCHED-02 | Phase 5 | Pending |
+| SCHED-03 | Phase 5 | Pending |
+| PLAT-01 | Phase 1 | Pending |
+| PLAT-02 | Phase 1 | Pending |
+| PLAT-03 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 25 total
-- Mapped to phases: 0
-- Unmapped: 25 ⚠️ (filled by create-roadmap)
+- Mapped to phases: 25
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-09-14*
-*Last updated: 2026-09-14 after initial definition*
+*Last updated: 2026-09-14 after roadmap creation*
