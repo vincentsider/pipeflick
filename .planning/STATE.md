@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-09-14)
 ## Current Position
 
 Phase: 1 of 5 (Foundation)
-Plan: 2 of 3 complete (01-01, 01-02 done; 01-03 pending)
-Status: In progress
-Last activity: 2026-09-14 — Completed 01-02-PLAN.md (Cloudflare Access gate, login verified)
+Plan: 3 of 3 complete (01-01, 01-02, 01-03 done)
+Status: Phase 1 complete, awaiting phase verification
+Last activity: 2026-09-14 — Completed 01-03-PLAN.md (Worker secrets, health page, Zernio decision)
 
-Progress: ██░░░░░░░░ 20%
+Progress: ███░░░░░░░ 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: ~9 min
-- Total execution time: ~0.3 hours (excluding user time on the Cloudflare dashboard)
+- Total plans completed: 3
+- Average duration: ~9 min agent time
+- Total execution time: ~0.55 hours agent time (excluding user time on the Cloudflare dashboard and filling .dev.vars)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 2/3 | ~18 min | ~9 min |
+| 1 | 3/3 | ~33 min | ~11 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~3 min), 01-02 (~15 min, includes a human-action pause)
+- Last 5 plans: 01-01 (~3 min), 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses)
 - Trend: —
 
 ## Accumulated Context
@@ -53,6 +53,8 @@ Recent decisions affecting current work:
 - 01-02: Access app created in the Cloudflare dashboard (Workers & Pages → pipeflick → Settings → Access), not via `scripts/create-access-app.sh`; no Access-scoped API token exists. Zero Trust team `your-team` (auto-generated), team domain `your-team.cloudflareaccess.com`, app AUD `YOUR_ACCESS_AUD`
 - 01-02: `ctx.access` works with the hostname-based app; jose JWT fallback not needed. Every route sits behind `app.use("*", requireAccess)`; read the user as `c.get("email")`. Local dev identity comes from `access.dev` in wrangler.jsonc
 - 01-03: Zernio replaces Metricool as the scheduler; the secret is ZERNIO_USER_TOKEN (not METRICOOL_USER_TOKEN). Phase 5 must be re-researched and re-planned against the Zernio API before execution. ROADMAP/REQUIREMENTS/PROJECT still say Metricool; the orchestrator updates them at phase completion
+- 01-03: secret names live only in `src/env.ts` SECRET_NAMES; health page and bindings type derive from it. Adding a secret = SECRET_NAMES entry + `.dev.vars.example` line + `npm run secrets:push`
+- 01-03: `/health` returns 500 when the D1 read-back fails so scripted checks catch a broken binding
 
 ### Pending Todos
 
@@ -67,6 +69,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-14
-Stopped at: 01-03 Task 2 complete (secrets pushed, deployed); awaiting human-verify of /health (Task 3)
+Last session: 2026-09-14 21:58 UTC
+Stopped at: Completed 01-03-PLAN.md; Phase 1 all plans done. Next: Phase 1 verification, then Phase 2 planning (Voice Sources)
 Resume file: None
