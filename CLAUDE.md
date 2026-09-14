@@ -12,6 +12,8 @@ Cloudflare Worker written in TypeScript with Hono + `hono/jsx` server rendering 
 - `npm run types` — regenerate `worker-configuration.d.ts` only
 - `npm run db:migrate:local` / `npm run db:migrate:remote` — apply `migrations/*.sql` to the local or production D1 (`pipeflick-db`)
 
+Deployed at: https://pipeflick.your-subdomain.workers.dev
+
 `logs/infinity-rules-mcp.log` is noise from an unrelated Pega MCP plugin and `cache/rag_queries/` is empty; neither belongs to this project.
 
 ## What is being built
