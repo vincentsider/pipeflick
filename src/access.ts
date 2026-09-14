@@ -1,11 +1,14 @@
 import { createMiddleware } from "hono/factory";
+import type { SecretBindings } from "./env";
 
 /**
  * Hono environment shared by every route: D1 and secret bindings from
- * wrangler-generated `Env`, plus the signed-in email set by `requireAccess`.
+ * wrangler-generated `Env` (secrets typed optional via `SecretBindings` so the
+ * code compiles whether or not `.dev.vars` declares them), plus the signed-in
+ * email set by `requireAccess`.
  */
 export type AppEnv = {
-  Bindings: Env;
+  Bindings: Env & SecretBindings;
   Variables: { email: string };
 };
 
