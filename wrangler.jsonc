@@ -15,6 +15,14 @@
       "database_name": "pipeflick-db",
       "database_id": "YOUR_D1_DATABASE_ID"
     }
-  ]
+  ],
+  // Local-only simulation of the Cloudflare Access context (ignored on deploy).
+  // Remove this block to see the Worker's own 403 for an anonymous visitor.
+  "access": {
+    "dev": {
+      "aud": "pipeflick-local",
+      "identity": { "email": "owner@example.com" }
+    }
+  }
   // No `assets` binding: static assets run behind a router Worker that drops ctx.access.
 }
