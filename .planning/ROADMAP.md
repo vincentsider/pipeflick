@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Scaffold Hono Worker, D1 database and settings migration, local dev, first deploy
+- [x] 01-01: Scaffold Hono Worker, D1 database and settings migration, local dev, first deploy
 - [ ] 01-02: Cloudflare Access gate (fail-closed middleware, hostname Access app, login verified)
 - [ ] 01-03: Worker secrets and health page (DB round-trip, secret presence without values)
 
@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Planned | - |
+| 1. Foundation | 1/3 | In progress | - |
 | 2. Voice Sources | 0/2 | Not started | - |
 | 3. Drafting | 0/2 | Not started | - |
 | 4. Approval Gate | 0/2 | Not started | - |
