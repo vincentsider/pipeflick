@@ -8,6 +8,13 @@
     "enabled": true
   },
   // Preview hostnames would bypass the hostname-based Access gate (Plan 01-02).
-  "preview_urls": false
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pipeflick-db",
+      "database_id": "YOUR_D1_DATABASE_ID"
+    }
+  ]
   // No `assets` binding: static assets run behind a router Worker that drops ctx.access.
 }
