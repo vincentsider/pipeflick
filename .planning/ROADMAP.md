@@ -50,11 +50,12 @@ Plans:
   5. User pastes past LinkedIn posts and sees them, alongside imported transcripts, in a sources view
 **Research**: Likely (external API)
 **Research topics**: Fireflies GraphQL API for listing transcripts and fetching sentences with speaker names; auth header format; rate limits and pagination; how speaker names appear when unmatched
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Fireflies client, meeting list, import with speaker filtering at ingestion
-- [ ] 02-02: Speaker-name setting with per-import override, paste past posts, sources view
+- [ ] 02-01: Speaker filter, test-first (vitest; keepSpeakerLines, countBySpeaker, matchSpeaker)
+- [ ] 02-02: Migration 0002 (transcripts, voice_samples), speaker-name setting, paste past posts, sources view
+- [ ] 02-03: Fireflies client, meeting list, preview with speaker override, filtered import, deploy and human check
 
 ### Phase 3: Drafting
 **Goal**: A run turns one transcript plus two or three pasted outliers into three LinkedIn drafts in the executive's voice
@@ -113,7 +114,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-09-14 |
-| 2. Voice Sources | 0/2 | Not started | - |
+| 2. Voice Sources | 0/3 | Not started | - |
 | 3. Drafting | 0/2 | Not started | - |
 | 4. Approval Gate | 0/2 | Not started | - |
 | 5. Zernio Push | 0/1 | Not started | - |
