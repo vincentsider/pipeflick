@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-09-14)
 ## Current Position
 
 Phase: 1 of 5 (Foundation)
-Plan: 1 of 3 complete (01-01 done; 01-02, 01-03 pending)
+Plan: 2 of 3 complete (01-01, 01-02 done; 01-03 pending)
 Status: In progress
-Last activity: 2026-09-14 — Completed 01-01-PLAN.md (scaffold, D1, first deploy)
+Last activity: 2026-09-14 — Completed 01-02-PLAN.md (Cloudflare Access gate, login verified)
 
-Progress: █░░░░░░░░░ 10%
+Progress: ██░░░░░░░░ 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: ~3 min
-- Total execution time: ~0.05 hours
+- Total plans completed: 2
+- Average duration: ~9 min
+- Total execution time: ~0.3 hours (excluding user time on the Cloudflare dashboard)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 1/3 | ~3 min | ~3 min |
+| 1 | 2/3 | ~18 min | ~9 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~3 min)
+- Last 5 plans: 01-01 (~3 min), 01-02 (~15 min, includes a human-action pause)
 - Trend: —
 
 ## Accumulated Context
@@ -49,7 +49,9 @@ Recent decisions affecting current work:
 - Phase 1 plan: secrets are OPENAI_API_KEY, FIREFLIES_API_KEY, METRICOOL_USER_TOKEN, pushed with `wrangler secret bulk .dev.vars`; no test framework until Phase 2 (speaker filtering is the first TDD candidate)
 - 01-01: tsconfig uses `lib: ["ES2022"]` (no DOM) + `skipLibCheck` so wrangler-generated types and hono/jsx types coexist; keep it that way
 - 01-01: `<style>` blocks use `dangerouslySetInnerHTML` (hono/jsx escapes text children)
-- 01-01: Worker is live at https://pipeflick.your-subdomain.workers.dev (public until 01-02); D1 `pipeflick-db` id `YOUR_D1_DATABASE_ID`, region WEUR
+- 01-01: Worker is live at https://pipeflick.your-subdomain.workers.dev; D1 `pipeflick-db` id `YOUR_D1_DATABASE_ID`, region WEUR
+- 01-02: Access app created in the Cloudflare dashboard (Workers & Pages → pipeflick → Settings → Access), not via `scripts/create-access-app.sh`; no Access-scoped API token exists. Zero Trust team `your-team` (auto-generated), team domain `your-team.cloudflareaccess.com`, app AUD `YOUR_ACCESS_AUD`
+- 01-02: `ctx.access` works with the hostname-based app; jose JWT fallback not needed. Every route sits behind `app.use("*", requireAccess)`; read the user as `c.get("email")`. Local dev identity comes from `access.dev` in wrangler.jsonc
 
 ### Pending Todos
 
@@ -57,13 +59,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 1: Zero Trust is not enabled on the Cloudflare account and the wrangler token has no Access scope. Vincent must enable Zero Trust (team name, Free plan) and create an API token with Access: Apps and Policies Edit before Plan 01-02 Task 2. Access app hostname: `pipeflick.your-subdomain.workers.dev`
-- Phase 1: `ctx.access` is documented for Worker-level Access; if it is undefined behind the hostname-based app, fall back to jose JWT verification (recipe in 01-02 checkpoint)
+- Phase 1 (resolved in 01-02): Zero Trust enabled and the Worker protected via the dashboard; `ctx.access` confirmed working, no jose fallback
+- Phase 2 (follow-up): confirm the dashboard Access policy is an explicit email allow-list (owner@example.com, owner.alt@example.com) rather than the default account-wide rule before real transcripts are imported
 - Phase 3: Worker request time limits may not fit several OpenAI calls in one request; research before planning
 - Phase 5: confirm the Metricool API is available on Vincent's plan and supports LinkedIn drafts
 
 ## Session Continuity
 
-Last session: 2026-09-14 21:00 UTC
-Stopped at: Completed 01-01-PLAN.md; 01-02 and 01-03 next
+Last session: 2026-09-14 21:13 UTC
+Stopped at: Completed 01-02-PLAN.md; 01-03 next
 Resume file: None

@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01: Scaffold Hono Worker, D1 database and settings migration, local dev, first deploy
-- [ ] 01-02: Cloudflare Access gate (fail-closed middleware, hostname Access app, login verified)
+- [x] 01-02: Cloudflare Access gate (fail-closed middleware, hostname Access app, login verified)
 - [ ] 01-03: Worker secrets and health page (DB round-trip, secret presence without values)
 
 ### Phase 2: Voice Sources
