@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An AI content manager for busy executives. It takes the executive's own words (Fireflies meeting transcripts, past LinkedIn posts) and market-proven post formats (outlier posts the executive pastes in), and drafts LinkedIn posts that follow a proven structure while sounding unmistakably like them. The executive reviews each draft in a simple web app, edits or accepts it, and approved posts are pushed to Metricool for scheduling. First user is Vincent (the founder) on his own data; second is one willing executive in Jersey's finance, data and professional-services scene.
+An AI content manager for busy executives. It takes the executive's own words (Fireflies meeting transcripts, past LinkedIn posts) and market-proven post formats (outlier posts the executive pastes in), and drafts LinkedIn posts that follow a proven structure while sounding unmistakably like them. The executive reviews each draft in a simple web app, edits or accepts it, and approved posts are pushed to Zernio for scheduling. First user is Vincent (the founder) on his own data; second is one willing executive in Jersey's finance, data and professional-services scene.
 
 ## Core Value
 
@@ -27,7 +27,7 @@ MVP (text loop, LinkedIn only):
 - [ ] Approval view: accept, edit inline, or reject each draft
 - [ ] Store original and edited text for every draft, plus the accept/edit/reject decision, so the light-edit rate is measurable
 - [ ] Feed recently approved and edited posts back into the next drafting prompt as voice examples
-- [ ] Push approved posts to Metricool for scheduling
+- [ ] Push approved posts to Zernio for scheduling
 - [ ] Single-user login sufficient for Vincent to use it alone
 - [ ] Deployed on Cloudflare Workers with D1 for data and R2 for any files
 
@@ -43,8 +43,8 @@ Pilot extensions (after MVP is proven):
 
 ### Out of Scope
 
-- Auto-publishing without human approval — the approval gate is the product's trust mechanism; approved posts go to Metricool as scheduled drafts, never straight to LinkedIn
-- Direct LinkedIn posting — LinkedIn restricts it; Metricool is the route
+- Auto-publishing without human approval — the approval gate is the product's trust mechanism; approved posts go to Zernio as scheduled drafts, never straight to LinkedIn
+- Direct LinkedIn posting — LinkedIn restricts it; Zernio is the route
 - AI-generated infographics and branding — roadmap, after the text loop works
 - Human editor touch-up tooling — roadmap
 - Multi-client SaaS, billing, onboarding at scale — pilot proves the loop on one or two people
@@ -59,7 +59,7 @@ Pilot extensions (after MVP is proven):
 - **Problem:** executives have deep expertise but post rarely because writing is slow. Ghostwriters cost £30k to £40k a year or £1.5k to £3k a month freelance and still need constant input. Generic AI tools sound like nobody and don't perform. Existing tools (Metricool, Publer, Stanley, Poppy AI, KLOE) are scattered and none is built for executives.
 - **Biggest risk:** voice matching isn't close enough and drafts need heavy rewriting. The MVP is designed to hit this risk first and nothing else; everything else is plumbing.
 - **Data available now:** Vincent's own Fireflies transcripts and past LinkedIn posts. One executive has agreed to provide data for free once the loop works.
-- **Existing accounts:** Fireflies, Metricool, OpenAI, Cloudflare (Vincent can log in via wrangler). A Supabase project exists in `.mcp.json` but is not used by this project; everything runs on Cloudflare.
+- **Existing accounts:** Fireflies, Zernio, OpenAI, Cloudflare (Vincent can log in via wrangler). A Supabase project exists in `.mcp.json` but is not used by this project; everything runs on Cloudflare.
 - **Success criteria from the PRD:** a week of content (5 to 6 posts per platform) in 1 to 2 hours; 80%+ drafts approved with light edits; 90%+ of content produced without a blank page; at least one real executive publishes a full week from the pilot.
 - **Kill criteria:** fewer than half the drafts usable without heavy rewriting; no real time saving over existing tools; compliance makes real executive data unusable.
 
@@ -67,7 +67,7 @@ Pilot extensions (after MVP is proven):
 
 - **Tech stack**: Cloudflare Workers, D1, R2, deployed with wrangler — single platform, single login, data in one place
 - **LLM**: OpenAI API for template extraction and drafting — user preference
-- **Integrations**: Fireflies API (transcripts in), Metricool API (approved posts out) — both accounts exist
+- **Integrations**: Fireflies API (transcripts in), Zernio API (approved posts out) — both accounts exist
 - **Compliance**: Data Protection (Jersey) Law 2018 (GDPR-equivalent) — only the executive's own transcript lines are stored or used; other speakers are dropped at ingestion; minimal storage; delete on request
 - **Compliance (later)**: for executives at JFSC-regulated firms, strip client identifiers and obtain written permission — affects the second-user phase, not the MVP
 - **Data residency**: Fireflies is US-hosted — acceptable for Vincent's own data; check transfer terms before the pilot executive's data goes through it
@@ -85,7 +85,7 @@ Pilot extensions (after MVP is proven):
 | Drop other speakers entirely | Matches the PRD consent rule; simplest compliant option | — Pending |
 | Hide extracted templates from the user | Fewer steps; user chose this over a visible, editable step | ⚠️ Revisit if drafts are off-voice and hard to diagnose |
 | Feed approved edits back into the next prompt | Cheapest form of the insights layer; starts learning from day one | — Pending |
-| Push approved posts to Metricool | Pulls scheduling into the MVP; user has an account and wants the loop to end in a scheduled post | — Pending |
+| Push approved posts to Zernio | Pulls scheduling into the MVP; user has an account and wants the loop to end in a scheduled post | — Pending |
 | MVP proven when Vincent publishes 3 posts from it | Concrete, personal, no third-party dependency | — Pending |
 
 ---

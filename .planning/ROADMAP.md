@@ -2,7 +2,7 @@
 
 ## Overview
 
-Five phases take Pipeflick from an empty repo to the MVP text loop: a Cloudflare Worker that pulls Vincent's own lines out of a Fireflies transcript, turns pasted outlier posts into hidden templates, drafts three LinkedIn posts in his voice, records his accept/edit/reject decision on each, feeds approved posts back into the next run, and pushes accepted drafts to Metricool. The order follows the data flow (platform → source material → drafts → decisions → scheduling) so the voice-matching risk is hit as early as the pipeline allows.
+Five phases take Pipeflick from an empty repo to the MVP text loop: a Cloudflare Worker that pulls Vincent's own lines out of a Fireflies transcript, turns pasted outlier posts into hidden templates, drafts three LinkedIn posts in his voice, records his accept/edit/reject decision on each, feeds approved posts back into the next run, and pushes accepted drafts to Zernio. The order follows the data flow (platform → source material → drafts → decisions → scheduling) so the voice-matching risk is hit as early as the pipeline allows.
 
 ## Phases
 
@@ -12,11 +12,11 @@ Five phases take Pipeflick from an empty repo to the MVP text loop: a Cloudflare
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Worker, D1, wrangler deploy, Cloudflare Access gate, secrets
+- [x] **Phase 1: Foundation** - Worker, D1, wrangler deploy, Cloudflare Access gate, secrets
 - [ ] **Phase 2: Voice Sources** - Fireflies import keeping only the executive's lines, pasted past posts
 - [ ] **Phase 3: Drafting** - Outliers to hidden templates, runs that produce three LinkedIn drafts
 - [ ] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
-- [ ] **Phase 5: Metricool Push** - Accepted drafts pushed to Metricool as unscheduled LinkedIn posts
+- [ ] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
 
 ## Phase Details
 
@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. The app deploys with wrangler and responds at its Cloudflare URL
   2. Visiting the URL without a Cloudflare Access login is blocked; Vincent can log in and see the app
   3. D1 migrations apply and a health page shows the app can read and write the database
-  4. OpenAI, Fireflies and Metricool keys are Worker secrets and the health page shows which are set without revealing values
+  4. OpenAI, Fireflies and Zernio keys are Worker secrets and the health page shows which are set without revealing values
 **Research**: Likely (first Cloudflare deployment, framework choice)
 **Research topics**: Cloudflare Access policy for a Worker route and how to validate the Access JWT in the Worker; D1 migrations with wrangler; server-rendered Worker framework choice (Hono vs plain fetch handler); local dev with wrangler dev and a local D1
 **Plans**: 3 plans
@@ -90,20 +90,20 @@ Plans:
 - [ ] 04-01: Approval view with accept, inline edit, reject and decision storage
 - [ ] 04-02: Run history and feedback of approved posts into the drafting prompt
 
-### Phase 5: Metricool Push
-**Goal**: An accepted draft reaches Metricool as an unscheduled LinkedIn post with one click
+### Phase 5: Zernio Push
+**Goal**: An accepted draft reaches Zernio as an unscheduled LinkedIn post with one click
 **Depends on**: Phase 4
 **Requirements**: SCHED-01, SCHED-02, SCHED-03
 **Success Criteria** (what must be TRUE):
-  1. User sees whether the Metricool connection works
-  2. User clicks once on an accepted draft and it appears in Metricool as an unscheduled LinkedIn post
-  3. The draft shows its pushed state and Metricool id, and a failed push shows a clear error
+  1. User sees whether the Zernio connection works
+  2. User clicks once on an accepted draft and it appears in Zernio as an unscheduled LinkedIn post
+  3. The draft shows its pushed state and Zernio id, and a failed push shows a clear error
 **Research**: Likely (external API)
-**Research topics**: Metricool API authentication (user token, user id, blog id); endpoint and payload for creating a LinkedIn post as a draft rather than scheduled; how to read back the post id; whether the API is available on Vincent's plan
+**Research topics**: Zernio API authentication (user token, user id, blog id); endpoint and payload for creating a LinkedIn post as a draft rather than scheduled; how to read back the post id; whether the API is available on Vincent's plan
 **Plans**: 1 plan
 
 Plans:
-- [ ] 05-01: Metricool client, push button, pushed state and error handling
+- [ ] 05-01: Zernio client, push button, pushed state and error handling
 
 ## Progress
 
@@ -112,8 +112,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In progress | - |
+| 1. Foundation | 3/3 | Complete | 2026-09-14 |
 | 2. Voice Sources | 0/2 | Not started | - |
 | 3. Drafting | 0/2 | Not started | - |
 | 4. Approval Gate | 0/2 | Not started | - |
-| 5. Metricool Push | 0/1 | Not started | - |
+| 5. Zernio Push | 0/1 | Not started | - |

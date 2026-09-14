@@ -40,15 +40,15 @@ Requirements for the MVP text loop (LinkedIn only, Vincent's own data). Each map
 
 ### Scheduling
 
-- [ ] **SCHED-01**: App connects to Metricool with configured credentials
-- [ ] **SCHED-02**: User can push an accepted draft to Metricool as an unscheduled LinkedIn post with one click
-- [ ] **SCHED-03**: User sees whether the push succeeded, and the draft records its pushed state and Metricool id
+- [ ] **SCHED-01**: App connects to Zernio with configured credentials
+- [ ] **SCHED-02**: User can push an accepted draft to Zernio as an unscheduled LinkedIn post with one click
+- [ ] **SCHED-03**: User sees whether the push succeeded, and the draft records its pushed state and Zernio id
 
 ### Platform
 
-- [ ] **PLAT-01**: App runs on Cloudflare Workers with D1, deployed with wrangler
-- [ ] **PLAT-02**: App is gated by Cloudflare Access so only Vincent can reach it
-- [ ] **PLAT-03**: OpenAI, Fireflies and Metricool keys live in Worker secrets, never in D1 or the repo
+- [x] **PLAT-01**: App runs on Cloudflare Workers with D1, deployed with wrangler
+- [x] **PLAT-02**: App is gated by Cloudflare Access so only Vincent can reach it
+- [x] **PLAT-03**: OpenAI, Fireflies and Zernio keys live in Worker secrets, never in D1 or the repo
 
 ## v2 Requirements
 
@@ -74,7 +74,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Scheduling
 
-- **SCHED-04**: User can pick a schedule date and time when pushing to Metricool
+- **SCHED-04**: User can pick a schedule date and time when pushing to Zernio
 
 ### Pilot extensions (from PROJECT.md)
 
@@ -93,7 +93,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Feature | Reason |
 |---------|--------|
 | Auto-publishing without human approval | The approval gate is the product's trust mechanism |
-| Direct LinkedIn posting | LinkedIn restricts it; Metricool is the route |
+| Direct LinkedIn posting | LinkedIn restricts it; Zernio is the route |
 | AI-generated infographics and branding | Roadmap, after the text loop works |
 | Human editor touch-up tooling | Roadmap |
 | Multi-client SaaS, billing, onboarding at scale | Pilot proves the loop on one or two people |
@@ -131,9 +131,9 @@ Which phases cover which requirements. Updated by create-roadmap.
 | SCHED-01 | Phase 5 | Pending |
 | SCHED-02 | Phase 5 | Pending |
 | SCHED-03 | Phase 5 | Pending |
-| PLAT-01 | Phase 1 | Pending |
-| PLAT-02 | Phase 1 | Pending |
-| PLAT-03 | Phase 1 | Pending |
+| PLAT-01 | Phase 1 | Complete |
+| PLAT-02 | Phase 1 | Complete |
+| PLAT-03 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 25 total
