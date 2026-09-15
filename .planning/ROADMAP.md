@@ -92,11 +92,12 @@ Gap closure (criterion 3 failed verification: the grounding check reads citation
   4. User sees a list of past runs with the decision on each draft
   5. The next run's drafting prompt includes the most recent approved and edited posts as voice examples
 **Research**: Unlikely (internal CRUD and UI using Phase 1 to 3 patterns)
-**Plans**: 2 plans
+**Plans**: 3 plans in 3 waves (planned 2026-09-15; split from 2 so the migration and D1 helpers land before anything renders through them)
 
 Plans:
-- [ ] 04-01: Approval view with accept, inline edit, reject and decision storage
-- [ ] 04-02: Run history and feedback of approved posts into the drafting prompt
+- [ ] 04-01: Migration 0005, decision storage, approved-post read, decisions in the run views — wave 1
+- [ ] 04-02: Approval view (accept, inline edit, reject) and decisions in the run list — wave 2
+- [ ] 04-03: Approved posts into the drafting prompt (DRAFT-04), deploy and human check — wave 3
 
 ### Phase 5: Zernio Push
 **Goal**: An accepted draft reaches Zernio as an unscheduled LinkedIn post with one click
@@ -123,5 +124,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation | 3/3 | Complete | 2026-09-14 |
 | 2. Voice Sources | 3/3 | Complete | 2026-09-15 |
 | 3. Drafting | 7/7 | Complete | 2026-09-15 |
-| 4. Approval Gate | 0/2 | Not started | - |
+| 4. Approval Gate | 0/3 | Planned | - |
 | 5. Zernio Push | 0/1 | Not started | - |
