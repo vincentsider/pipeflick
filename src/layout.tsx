@@ -42,6 +42,8 @@ const NAV = [
   { href: "/sources", label: "Sources" },
   { href: "/runs", label: "Runs" },
   { href: "/fireflies", label: "Fireflies" },
+  // Beside Fireflies on purpose: the two integrations are material in, posts out.
+  { href: "/zernio", label: "Zernio" },
   { href: "/settings", label: "Settings" },
   { href: "/health", label: "Health" },
 ];

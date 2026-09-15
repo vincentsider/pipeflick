@@ -7,6 +7,7 @@ import { Layout } from "./layout";
 import { runs } from "./runs";
 import { settings } from "./settings";
 import { sources } from "./sources";
+import { zernio } from "./zernio-routes";
 
 const app = new Hono<AppEnv>();
 
@@ -29,6 +30,10 @@ app.route("/", sources);
 // Fireflies connection, meeting list and speaker-filtered import.
 app.route("/", fireflies);
 
+// Fireflies' opposite number: the Zernio connection and the LinkedIn account
+// an approved draft is pushed to. Behind the app-wide Access gate and csrf().
+app.route("/", zernio);
+
 // Drafting runs: paste outliers, pick a transcript, watch the steps.
 app.route("/", runs);
 
@@ -39,8 +44,8 @@ app.get("/", (c) =>
       <p>Signed in as {c.get("email")}</p>
       <p>
         <a href="/sources">Sources</a> · <a href="/runs">Runs</a> ·{" "}
-        <a href="/fireflies">Fireflies</a> · <a href="/settings">Settings</a> ·{" "}
-        <a href="/health">Health</a>
+        <a href="/fireflies">Fireflies</a> · <a href="/zernio">Zernio</a> ·{" "}
+        <a href="/settings">Settings</a> · <a href="/health">Health</a>
       </p>
     </Layout>,
   ),
