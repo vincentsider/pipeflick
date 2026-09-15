@@ -30,8 +30,10 @@ import {
   DRAFT_INSTRUCTIONS,
   DRAFT_SCHEMA,
   EXTRACT_INSTRUCTIONS,
+  excerptTranscript,
   isGrounded,
   MAX_OUTLIER_CHARS,
+  MAX_TRANSCRIPT_CHARS,
   MAX_OUTPUT_DRAFT,
   MAX_OUTPUT_EXTRACT,
   MAX_SAMPLES,
@@ -214,11 +216,23 @@ function NewRunForm({
       <p>
         <select id="transcript_id" name="transcript_id" required>
           {transcripts.map((row) => (
-            <option value={row.id}>{`${row.title} — ${formatDate(row.meeting_date)}`}</option>
+            <option value={row.id}>
+              {`${row.title} — ${formatDate(row.meeting_date)}${
+                row.body_chars > MAX_TRANSCRIPT_CHARS ? " (long — only the first part is used)" : ""
+              }`}
+            </option>
           ))}
         </select>
       </p>
       <p class="hint">Only your own lines were kept on import; that is all the model sees.</p>
+      {/*
+        Deliberately no number in the option label: the exact figure is
+        lines-based and comes from the run page, and quoting characters here
+        against lines there is how a user stops trusting both.
+      */}
+      <p class="hint">
+        {`Long meetings are cut to the first ${MAX_TRANSCRIPT_CHARS} characters, on a line boundary. The run page shows exactly how much was used.`}
+      </p>
 
       {/*
         Voice samples are the other half of the drafting input, and a run with
@@ -274,6 +288,27 @@ function StepStatus({ status, attempts = 0 }: { status: string; attempts?: numbe
     <span class={`status status-${status}`}>
       {attempts > 1 ? `${status} · attempt ${attempts}` : status}
     </span>
+  );
+}
+
+/**
+ * How much of the transcript actually reached the model, stated exactly.
+ *
+ * Silence is the correct output for a run created before migration 0004: it
+ * has no stored counts, and inventing one would be the over-claiming this
+ * whole gap exists to fix. A cut transcript is a warning rather than an error
+ * — the run is fine, but the drafts had less to work with than the executive
+ * assumes, which is the one thing they cannot see from the output.
+ */
+function TranscriptCoverage({ used, total }: { used: number | null; total: number | null }) {
+  if (used === null || total === null) return <></>;
+  if (used >= total) {
+    return <p class="hint">{`Using all ${total} lines of your transcript.`}</p>;
+  }
+  return (
+    <p class="notice warn">
+      {`Using the first ${used} of ${total} lines of your transcript. The rest was not sent. Shorter meetings, or splitting a long one, give the drafts more to work with.`}
+    </p>
   );
 }
 
@@ -665,7 +700,11 @@ runs.post("/runs", async (c) => {
     return c.text(`Each outlier must be ${MAX_OUTLIER_CHARS} characters or fewer`, 400);
   }
 
-  const runId = await createRun(c.env.DB, transcriptId, bodies);
+  // The transcript was loaded above to prove the row exists; the same read
+  // pays for the coverage counts, which are stored on the run so the page can
+  // state exactly how much of the meeting reached the model.
+  const { linesUsed, linesTotal } = excerptTranscript(transcript.body);
+  const runId = await createRun(c.env.DB, transcriptId, bodies, { linesUsed, linesTotal });
   return c.redirect(`/runs/${runId}`, 303);
 });
 
@@ -698,6 +737,10 @@ runs.get("/runs/:id", async (c) => {
       <p>
         {`${done} of ${total} steps done`} <StepStatus status={view.run.status} />
       </p>
+      <TranscriptCoverage
+        used={view.run.transcript_lines_used}
+        total={view.run.transcript_lines_total}
+      />
       <RunControl
         runId={id}
         done={done}
