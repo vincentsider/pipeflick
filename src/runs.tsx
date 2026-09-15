@@ -8,6 +8,7 @@ import {
   finishOutlier,
   getRunView,
   getTranscript,
+  listApprovedPosts,
   listRuns,
   listTranscripts,
   listVoiceSamples,
@@ -35,6 +36,7 @@ import {
   DRAFT_SCHEMA,
   EXTRACT_INSTRUCTIONS,
   excerptTranscript,
+  MAX_APPROVED_POSTS,
   MAX_OUTLIER_CHARS,
   MAX_TRANSCRIPT_CHARS,
   MAX_OUTPUT_DRAFT,
@@ -1073,8 +1075,9 @@ runs.get("/runs/:id", async (c) => {
  *   uncaught throw would leave the claimed row 'running' for the full 180s
  *   stale window with nothing recorded against it.
  *
- * Budget: at most 10 D1 queries and 1 subrequest, against a Free-plan ceiling
- * of 50 of each per invocation.
+ * Budget: at most 11 D1 queries and 1 subrequest, against a Free-plan ceiling
+ * of 50 of each per invocation. The eleventh is 04-03's approved-posts read,
+ * which costs no extra subrequest: it rides into the same OpenAI call.
  */
 runs.post("/runs/:id/step", async (c) => {
   const runId = c.req.param("id");
@@ -1126,6 +1129,15 @@ runs.post("/runs/:id/step", async (c) => {
       } else {
         const samples = await listVoiceSamples(c.env.DB);
         const sampleBodies = samples.map((sample) => sample.body);
+        // DRAFT-04, the feedback loop: what the executive accepted or accepted
+        // after editing, newest first, as voice input for the next draft.
+        // `runId` excludes this run's own drafts — without it a mid-run
+        // approval would feed draft 1 back into draft 3, and the cacheable
+        // prefix would stop being byte-stable across a run's three calls.
+        // The constant lives with the prompt and the query lives with the
+        // database; this route is the only place that knows both, which is
+        // what keeps src/db.ts free of any prompt import.
+        const approvedPosts = await listApprovedPosts(c.env.DB, MAX_APPROVED_POSTS, runId);
         const { value, usage } = await callStructured<DraftOutput>(apiKey, {
           model: MODEL_DRAFT,
           instructions: DRAFT_INSTRUCTIONS,
@@ -1134,7 +1146,7 @@ runs.post("/runs/:id/step", async (c) => {
           // counterparty — the exact Jersey/JFSC leak this phase exists to
           // prevent. `buildDraftingInput` has no row-taking overload and must
           // never gain one; test/prompts.test.ts asserts both halves.
-          input: buildDraftingInput(sampleBodies, transcript.body, JSON.parse(job.template) as Template),
+          input: buildDraftingInput(sampleBodies, approvedPosts, transcript.body, JSON.parse(job.template) as Template),
           schemaName: "linkedin_draft",
           schema: DRAFT_SCHEMA,
           maxOutputTokens: MAX_OUTPUT_DRAFT,
@@ -1150,6 +1162,14 @@ runs.post("/runs/:id/step", async (c) => {
           // ever more lenient than what the model was shown. Outlier bodies are
           // deliberately absent — FORMAT carries shape only, so an outlier's
           // phrasing in a draft is a defect, not grounding to be credited.
+          //
+          // `approvedPosts` is deliberately absent too, and that is not an
+          // oversight. Approving a post for publication is not certifying that
+          // every claim in it came from the executive's own material. Credit an
+          // approved post as grounding and one fabrication launders itself into
+          // a permanent source, re-credited in every run after. The prompt says
+          // the same thing to the model: take voice from APPROVED POSTS, never
+          // a claim.
           checkGrounding(value.post, value.source_lines, [transcript.body, ...sampleBodies]),
           usage,
         );
