@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cloudflare Worker written in TypeScript with Hono + `hono/jsx` server rendering (no build step beyond wrangler's esbuild), D1 for storage, wrangler for dev/deploy. Source lives in `src/`, migrations in `migrations/`. `wrangler types` generates `worker-configuration.d.ts` (gitignored), which is where the `Env` binding type comes from; do not add `@cloudflare/workers-types`.
 
+`wrangler.jsonc` is **gitignored** — it holds the real D1 `database_id` and the local dev identity. `wrangler.example.jsonc` is the committed template; copy it to `wrangler.jsonc` and fill in your own values. Nothing in the public repo carries account, database or Access identifiers.
+
 - `npm run dev` — local dev server at http://localhost:8787 (Miniflare, local D1 under `.wrangler/state`)
 - `npm run check` — regenerate types and run `tsc --noEmit`
 - `npm run deploy` — deploy to workers.dev

@@ -32,3 +32,7 @@ cache/
 
 # Pilot PRD: business strategy, kept out of the public repo
 prd.md
+
+# Local Worker config: holds the real D1 database id and dev identity.
+# Copy wrangler.example.jsonc -> wrangler.jsonc and fill in your own values.
+wrangler.jsonc
