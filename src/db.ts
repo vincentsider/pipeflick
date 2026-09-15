@@ -819,6 +819,16 @@ export async function listApprovedPosts(
  * ------------------------------------------------------------------------ */
 
 /**
+ * Settings keys for the LinkedIn account a push goes to, chosen once on
+ * `/zernio` — the same `settings`-table pattern as {@link SPEAKER_NAME_KEY},
+ * declared here rather than beside it because everything Zernio lives in this
+ * section. The label is stored alongside the id so a page can say which account
+ * a push would use without spending a Zernio request on every render.
+ */
+export const ZERNIO_ACCOUNT_ID_KEY = "zernio.account_id";
+export const ZERNIO_ACCOUNT_LABEL_KEY = "zernio.account_label";
+
+/**
  * Record that a draft reached Zernio, with the id Zernio gave it.
  *
  * The non-obvious half is the clearing: a success sets both error columns back
