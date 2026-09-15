@@ -107,12 +107,15 @@ Plans:
   1. User sees whether the Zernio connection works
   2. User clicks once on an accepted draft and it appears in Zernio as an unscheduled LinkedIn post
   3. The draft shows its pushed state and Zernio id, and a failed push shows a clear error
-**Research**: Likely (external API)
-**Research topics**: Zernio API authentication (user token, user id, blog id); endpoint and payload for creating a LinkedIn post as a draft rather than scheduled; how to read back the post id; whether the API is available on Vincent's plan
-**Plans**: 1 plan
+**Research**: Complete (see DISCOVERY.md, 2026-09-15) — read against the authoritative OpenAPI 3.1 spec at zernio.com/openapi.yaml, not the prose docs, which disagree with it on the draft field
+**Research topics**: Zernio API authentication (Bearer API key, `sk_` + 64 hex); `POST /v1/posts` with `isDraft: true` for an unscheduled post; `post._id` read back from the 201; whether the API is available on Vincent's plan — not answerable from documentation, and `GET /v1/accounts` on the `/zernio` page is the empirical test
+**Plans**: 4 plans in 3 waves (planned 2026-09-15; the roadmap's original estimate of 1 predates the research, which turned up a migration, a client, a connection/account page and the push path)
 
 Plans:
-- [ ] 05-01: Zernio client, push button, pushed state and error handling
+- [ ] 05-01: Zernio client and the publish-safety pin (`isDraft` asserted by test) — wave 1
+- [ ] 05-02: Migration 0006, push state stored per draft — wave 1
+- [ ] 05-03: `/zernio` connection page and LinkedIn account selection (SCHED-01) — wave 2
+- [ ] 05-04: Push button, route, pushed state, deploy and human check — wave 3
 
 ## Progress
 
@@ -125,4 +128,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Voice Sources | 3/3 | Complete | 2026-09-15 |
 | 3. Drafting | 7/7 | Complete | 2026-09-15 |
 | 4. Approval Gate | 3/3 | Complete | 2026-09-15 |
-| 5. Zernio Push | 0/1 | Not started | - |
+| 5. Zernio Push | 0/4 | Planned | - |
