@@ -177,16 +177,21 @@ function toUsageJson(usage: TokenUsage | null | undefined): string | null {
   });
 }
 
+/** Characters of the pasted outlier shown on the status page. */
+export const OUTLIER_EXCERPT_CHARS = 80;
+
 /**
  * Outlier progress as the status page needs it. `template_json` is absent by
  * design: OUTL-02 says the extracted format is stored and never shown, and
  * omitting it from the projection makes that structural rather than a
- * rendering discipline. `body` is omitted too — the page shows progress, not
- * the pasted text.
+ * rendering discipline. The full `body` is omitted for the same reason — only
+ * `excerpt`, cut to OUTLIER_EXCERPT_CHARS by SQLite so the rest of the pasted
+ * text never leaves D1, and only so the reader can tell two outliers apart.
  */
 export type OutlierView = {
   id: number;
   position: number;
+  excerpt: string;
   status: JobStatus;
   attempts: number;
   error_code: string | null;
@@ -209,6 +214,8 @@ export type DraftView = {
 
 export type RunView = {
   run: RunRow;
+  /** NULL when the source transcript has since been deleted (delete-on-request). */
+  transcript_title: string | null;
   outliers: OutlierView[];
   drafts: DraftView[];
 };
@@ -460,17 +467,22 @@ export async function setRunStatus(
 /** The status page in three queries — one per table, never N+1. */
 export async function getRunView(db: D1Database, runId: string): Promise<RunView | null> {
   const run = await db
-    .prepare("SELECT id, transcript_id, status, created_at, updated_at FROM runs WHERE id = ?1")
+    .prepare(
+      "SELECT r.id AS id, r.transcript_id AS transcript_id, r.status AS status, " +
+        "r.created_at AS created_at, r.updated_at AS updated_at, t.title AS transcript_title " +
+        "FROM runs r LEFT JOIN transcripts t ON t.id = r.transcript_id WHERE r.id = ?1",
+    )
     .bind(runId)
-    .first<RunRow>();
+    .first<RunRow & { transcript_title: string | null }>();
   if (!run) return null;
+  const { transcript_title, ...runRow } = run;
 
   const outliers = await db
     .prepare(
-      "SELECT id, position, status, attempts, error_code, error_message " +
-        "FROM outliers WHERE run_id = ?1 ORDER BY position",
+      "SELECT id, position, substr(body, 1, ?2) AS excerpt, status, attempts, " +
+        "error_code, error_message FROM outliers WHERE run_id = ?1 ORDER BY position",
     )
-    .bind(runId)
+    .bind(runId, OUTLIER_EXCERPT_CHARS)
     .all<OutlierView>();
 
   const drafts = await db
@@ -482,7 +494,8 @@ export async function getRunView(db: D1Database, runId: string): Promise<RunView
     .all<Omit<DraftView, "grounded"> & { grounded: number | null }>();
 
   return {
-    run,
+    run: runRow,
+    transcript_title,
     outliers: outliers.results,
     drafts: drafts.results.map((row) => ({ ...row, grounded: row.grounded === null ? null : row.grounded === 1 })),
   };

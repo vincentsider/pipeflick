@@ -19,6 +19,7 @@ const css = `
   th { font-weight: 600; }
   .notice { background: #eefaf1; border-left: 3px solid #0b5; padding: 0.4rem 0.6rem; }
   .notice.error { background: #fdeded; border-left-color: #c0392b; }
+  .notice.warn { background: #fdf6e3; border-left-color: #b8860b; }
   .hint { color: #666; font-size: 0.9rem; }
   textarea { width: 100%; font: inherit; }
   .samples { list-style: none; padding: 0; }
