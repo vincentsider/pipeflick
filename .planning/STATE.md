@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 3 — Drafting is planned (4 plans in 3 waves), ready to execute
+**Current focus:** Phase 3 — Drafting, wave 1 in progress (03-01 done: the prompt/schema module)
 
 ## Current Position
 
 Phase: 3 of 5 (Drafting)
-Plan: 0 of 4 — planned, not started. Waves: [03-01, 03-02] parallel → [03-03] → [03-04]
-Status: Phase 3 planned 2026-09-15 from 03-RESEARCH.md; Phase 2 complete and verified (5/5 roadmap criteria, 11/11 plan truths, no gaps)
-Last activity: 2026-09-15 — Created 03-01..03-04 PLAN.md (discovery Level 0; 03-RESEARCH.md was sufficient)
+Plan: 1 of 4 complete (03-01). Waves: [03-01 ✓, 03-02] parallel → [03-03] → [03-04]
+Status: In progress — 03-01 complete (src/prompts.ts, TDD, 34 tests green, tsc clean); 03-02 running in parallel
+Last activity: 2026-09-15 — Completed 03-01-PLAN.md (prompt assembly, schemas, grounding check)
 
-Progress: █████░░░░░ 46% (6 of 13 plans)
+Progress: █████░░░░░ 54% (7 of 13 plans)
 
 ## Performance Metrics
 
@@ -75,6 +75,11 @@ Recent decisions affecting current work:
 - 03 plan: `store: false` on every OpenAI request (the Responses default is 30-day application-state retention). Abuse-monitoring logs are still kept 30 days; changing that needs a ZDR agreement — state it honestly, do not claim zero retention
 - 03 plan: claim-then-work before every call (`SELECT` then conditional `UPDATE`, `meta.changes === 1`); no `RETURNING` (undocumented in D1). Auto-advance renders its `<script>` only when work is claimable, the last failure was retryable and `attempts < 2` — otherwise a bad key loops forever
 - 03 plan: `outliers.template_json` is stored but never rendered, and is excluded from the `getRunView` projection so OUTL-02 is structural rather than a rendering discipline
+- 03-01: `src/prompts.ts` is the phase's compliance boundary — zero imports, primitives-only builders. `buildDraftingInput(samples: string[], transcriptBody: string, template: Template)` must never gain a row-taking overload, and no call site may pass a meeting title "for context". Both halves are asserted in `test/prompts.test.ts` (payload excludes the title/speaker, and the source file contains no `import`)
+- 03-01: every model id, token cap, timeout and character cap lives as a named constant in `src/prompts.ts`, not inline at the call site. The approval-rate lever is one line there: `MODEL_DRAFT` from `gpt-5.6-sol` to `gpt-6-astra`
+- 03-01: `excerptTranscript` returns `{ text, linesUsed, linesTotal }` (counts, not a truncated flag) so the run page renders "using the first N of M lines" without a second pass over the body; a line longer than the whole 12000-char budget is truncated inside rather than dropped
+- 03-01: `isGrounded` rejects whitespace-only citations as well as an empty array — `body.includes("")` is always true, so a naive check would score an empty citation as grounded. A false is a warning beside the draft, never a hard failure
+- 03-01: the load-bearing instruction phrases (banned words, "Invent nothing.", "Do not name clients…", the never-mention-a-transcript rule, the em-dash ban) are pinned by test, so a reword cannot silently drop one
 
 ### Pending Todos
 
@@ -98,5 +103,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-09-15
-Stopped at: Phase 3 planned. 4 plans in 3 waves, all derived from 03-RESEARCH.md (no extra discovery needed). Architecture: one OpenAI Responses call per Worker invocation, driven by a D1 job table (migration 0003) — no queue, Durable Object, Workflow or paid plan. Next: `/gsd:execute-phase 3`
+Stopped at: Completed 03-01-PLAN.md — `src/prompts.ts` + `test/prompts.test.ts` (TDD: RED `88ad0b4`, GREEN `01f551d`). 34 tests green, `tsc --noEmit` clean. 03-02 (migration 0003, `src/db.ts`, `src/openai.ts`) ran in parallel; 03-03 (runs router) unblocks once both land
 Resume file: None
