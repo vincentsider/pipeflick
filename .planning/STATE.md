@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** **Phase 4 (Approval Gate) is under way.** 04-01 built the data model for the decision — original text, final text, decision, timestamp — so the 80% light-edit claim is one SQL query from the data. Next is 04-02, the gate itself (accept / edit / reject on the run page), then 04-03, which feeds approved posts back into the drafting prompt. Draft quality is still unaddressed: the gate measures the number, the two open todos are what move it
+**Current focus:** **Phase 4 (Approval Gate) is under way.** 04-01 built the data model for the decision and 04-02 built the gate itself — accept, edit-then-accept or reject under every finished draft, with 'edited' derived by comparing the submitted text against the model's original. Next is 04-03, which feeds approved posts back into the drafting prompt and owns the deploy. Draft quality is still unaddressed: the meter is now built and wired end to end, the two open todos are what move the number
 
 ## Current Position
 
 Phase: 4 of 5 (Approval Gate) — in progress
-Plan: 04-01 ✓ of 3. Waves: [04-01 ✓] → [04-02] → [04-03]. Phase 3 complete: 03-01 ✓ … 03-07 ✓
-Status: Migration 0005 is applied to **local and remote** D1: `drafts` carries `decision`, `final_body` and `decided_at`, with `body` never overwritten so an edit stays measurable. `recordDecision` (run-scoped UPDATE) and `listApprovedPosts` (newest-first, excluding one run) are in `src/db.ts`. **Nothing is deployed and no UI exists yet** — remote schema is ahead of remote code on purpose, as 03-06 left it; 04-03 owns the deploy. **The 80% approval target remains unmet and untested since run 1**: this plan built the meter, not the engine
-Last activity: 2026-09-15 — Completed 04-01-PLAN.md (decision columns and the two D1 helpers the rest of Phase 4 writes through). Verified by driving each helper's exact SQL against seeded local D1, including the negative case (a draft id from another run changes 0 rows), then deleting every seeded row
+Plan: 04-02 ✓ of 3. Waves: [04-01 ✓] → [04-02 ✓] → [04-03]. Phase 3 complete: 03-01 ✓ … 03-07 ✓
+Status: The gate works locally end to end. `/runs/:id` renders an editable copy of each finished draft with Accept and Reject; `POST /runs/:id/drafts/:draftId/decision` compares the submitted text with the stored `body` and writes `accepted` or `edited` itself; `/runs` shows the decision on each draft per position. Migration 0005 is on **local and remote** D1. **Still not deployed** — remote schema is ahead of remote code on purpose, as 03-06 left it; 04-03 owns the single deploy. **The 80% approval target remains unmet and untested since run 1**: the gate has never been used on a real draft, and the first honest reading is expected to be poor
+Last activity: 2026-09-15 — Completed 04-02-PLAN.md (the approval gate itself). Verified against seeded local D1 by driving all eight plan checks plus eight rejection paths through the live route — including the unchanged-accept submitted with CRLF line endings, which is the check that proves the light-edit rate is not stuck at 0% — then deleting every seeded row
 
-Progress: █████████░ 88% (14 of 16 plans created; Phase 5 is not yet planned)
+Progress: █████████░ 94% (15 of 16 plans created; Phase 5 is not yet planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: ~8 min agent time
-- Total execution time: ~1.7 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 / 03-07 verification checkpoints)
+- Total execution time: ~1.8 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 / 03-07 verification checkpoints)
 
 **By Phase:**
 
@@ -31,7 +31,7 @@ Progress: █████████░ 88% (14 of 16 plans created; Phase 5 is
 | 2 | 3/3 | ~15 min agent (~27 min wall) | ~5 min |
 | 3 | 7/7 | ~61 min agent (~3h wall) | ~9 min |
 | 3 (gap closure) | 3/3 | ~33 min agent | ~11 min |
-| 4 | 1/3 | ~7 min agent | ~7 min |
+| 4 | 2/3 | ~12 min agent | ~6 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
@@ -42,6 +42,7 @@ Progress: █████████░ 88% (14 of 16 plans created; Phase 5 is
 - 03-05 (~12 min, fully autonomous TDD, ran in parallel with 03-06): RED/GREEN took ~5 min; the other ~7 went on calibrating against the real production drafts — exporting run 1, sweeping thresholds, and checking whether a flagged sentence was actually a fabrication before accepting the verdict. The measurement is what made the SUMMARY honest, and it contradicted the plan
 - 03-07 (~12 min agent, ~25 min wall with one blocking checkpoint): two code commits and a deploy; roughly half the agent time went on seeding local D1 with seven drafts so all six render branches — including a deliberately malformed `grounding_json` — were seen rather than reasoned about
 - 04-01 (~7 min, fully autonomous): a migration and one file. Roughly half the time went on seeding local D1 with two runs so the run-scoping guard could be *measured* (`SELECT changes()` after each UPDATE) rather than reasoned about — the cross-run UPDATE changing 0 rows is the whole security claim of the plan
+- 04-02 (~5 min, fully autonomous): the fastest plan since 03-03, and for the same reason — 04-01 had already shaped every read and write the page needed, so the work was rendering, one route and validation. One file touched. The verification (eight plan checks plus eight rejection paths, all driven through the live route with curl) cost more than the code
 - Trend: steady — Phase 2 averaged ~5 min per plan; the wall-clock cost is concentrated in the verification checkpoints (02-03, 03-04, 03-07), which is exactly where a human should be in the loop (first real executive data, then first real output, then the instrument that judges it)
 
 ## Accumulated Context
@@ -140,6 +141,13 @@ Recent decisions affecting current work:
 - 04-01: `listRuns` carries per-draft decisions via **one extra flat query grouped in JS**, not four more correlated subqueries per row and not a per-run read. Two queries for the whole page, still no bodies. `DraftView` and `getRunView` carry `decision`, `final_body` and `decided_at`
 - 04-01: the DB layer **does not derive 'edited'** — 04-02's route compares the submitted text against `body` and decides. A self-reported edit flag would measure what people claim rather than what they did
 
+- 04-02: **two buttons, three outcomes.** Accept and Reject are the only controls; `POST /runs/:id/drafts/:draftId/decision` reads the draft's stored `body`, compares, and writes `accepted` or `edited` itself. There must never be an "Accept with edits" button — the derivation is what keeps APPR-05 a measurement instead of a survey
+- 04-02: **`normalisePost` (CRLF→LF, then trim) runs on both sides of that comparison and on the stored value**, and it is load-bearing. Browsers submit textareas CRLF-normalised per the HTML spec and D1 holds LF, so without it every accept records as `edited` and the light-edit rate reads 0% forever *while the gate still appears to work*. The unchanged-accept check is therefore always submitted with real CRLF endings
+- 04-02: decision controls render only when **`!advance.auto`** — the condition is "this page is not about to resubmit itself", not "the run finished". A halted run's written drafts are still decidable, and a 400ms self-submit under a half-typed edit would discard it. Passed into `DraftSection` as one `interactive` prop, never re-derived inside the component
+- 04-02: the textarea prefills from **`final_body ?? body`**, a rejected draft still renders its post with `final_body` NULL, and `body` is never written by any path. Re-verified after every check: unchanged on all five seeded rows
+- 04-02: route shape is `RUN_ID_PATTERN` + `DRAFT_ID_PATTERN` (`/^\d{1,9}$/`) → 400; `decision` must be exactly `accept` or `reject`, never inferred from a missing field → 400; empty or >`MAX_DECISION_BODY_CHARS` (5000, LinkedIn's own ceiling is 3000) → 400; a draft with no post yet → 400; `recordDecision` false → 404; then 303 back to the run. Reject skips `getRunView` entirely (one query, not four) and still 404s on a cross-run draft
+- 04-02: the run list shows **`1 accepted · 2 edited · 3 —`** per draft position (APPR-06 asks per draft, not a tally). An undecided or unwritten draft is `—`, never "pending" — pending is Phase 3's job vocabulary and would say the engine is still working. No new CSS; `.hint` carries the cell
+
 ### Pending Todos
 
 - **Phase 4, high — the draft-quality findings from 03-04's real run. Two of the three are still open, and they interact:**
@@ -148,7 +156,7 @@ Recent decisions affecting current work:
   - `.planning/todos/pending/context-layer-for-drafts.md` — live context retrieval. Recorded only; the user decided 2026-09-15 not to insert it as a phase yet. **Still open**
 - ~~Phase 4 (small): `usage_json` does not capture `usage.input_tokens_details.cached_tokens`~~ — **closed by 03-07**, folded into `finishDraft` as STATE said it should be. `toUsageJson` records it and `src/openai.ts`'s `Usage` declares it; one more run settles 03-04's "caching eligible but unproven" note
 - ~~Phase 4 (small): `excerptTranscript` returns `linesUsed`/`linesTotal` and no page renders them~~ — **closed by 03-06.** The counts are stored on the run at creation and rendered on the run page; a transcript that will be cut is flagged on the new-run form before the run is paid for. Run 1's own coverage stays permanently unknown (it predates the columns)
-- Still pending (low, hardening): narrow the transcript prop on the Fireflies import preview — see `.planning/todos/pending/narrow-transcript-prop-type.md`. It said to pick this up in any Phase 3 plan touching `fireflies-routes.tsx`; none did, so it stays pending for Phase 4
+- Still pending (low, hardening): narrow the transcript prop on the Fireflies import preview — see `.planning/todos/pending/narrow-transcript-prop-type.md`. It said to pick this up in any Phase 3 plan touching `fireflies-routes.tsx`; none did, and neither 04-01 nor 04-02 touched that file either, so it stays pending for 04-03 or Phase 5
 
 - Phase 5: re-research and re-plan against the Zernio API before planning that phase (the doc rename is done; the API research is not)
 
@@ -179,6 +187,10 @@ Recent decisions affecting current work:
 - Phase 3 (03-04, info): CPU ms per step was not captured. Indirect evidence only — six steps on the Free plan with the largest payload the input caps allow, no Error 1102 `exceededCpu`
 - Phase 3 (03-03, minor): `/runs` lists every run with no paging, like `/sources`. Fine at pilot scale, but `listRuns` counts jobs per run with subqueries, so a long history would want a limit
 - Phase 3 (03-03, resolved by 03-06): `POST /runs` loaded the whole transcript body only to prove the row existed and then discarded it. That read now pays for the coverage counts stored on the run
+- **Phase 4 (04-02, open): the gate has never been used on a real draft.** All eight plan checks and eight rejection paths were driven through the live route against seeded local D1, but every decision recorded so far is one an agent made about text an agent wrote. The first reading of the approval rate is the executive's first session with it, and it cannot happen before 04-03 deploys
+- Phase 4 (04-02, info): `/runs` still could not be checked in production for the usual reason — Access 302s an unauthenticated request before the Worker runs. Everything in 04-02 is verified locally only, like 03-06 before its deploy
+- Phase 4 (04-02, info): a low approval rate also starves 04-03's feedback loop. `listApprovedPosts` reads only `accepted` and `edited` rows, so on current draft quality the first runs after 04-03 may have nothing to feed back — the loop starts helping only once something clears the gate
+
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
 - **Phase 3 (re-verification, 2026-09-15): status is `human_needed`, not `passed`.** Nothing is missing, stubbed or unwired, and both original gaps are independently re-proved closed — the decisive probe (three genuine citations wrapped around a fully invented body) used to pass and now returns `grounded: false` with all three fabricated sentences quoted back. But three things have never been observed live, and one ~$0.10 run closes all three at once:
@@ -191,7 +203,9 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-09-15
-Stopped at: Phase 3 complete. 03-04 — step route (`8433e35`), auto-advance and retry (`feb314f`), voice-sample warning (`75ef4a6`), deployed as version `b3156846-e6bb-4e4a-a14a-ad45b629406b`. The whole paid path was verified for free against a deliberately invalid key before the checkpoint; `.dev.vars` was backed up and restored SHA-identical, and local D1 is back to zero rows. The user then ran it on real data: 6/6 steps done first attempt, $0.097, three drafts they would not publish. Next: Phase 4 (Approval Gate), 2 plans, carrying the three quality todos
+Stopped at: Completed 04-02-PLAN.md — the approval gate is live locally, nothing deployed. Earlier history below.
+
+Phase 3 complete. 03-04 — step route (`8433e35`), auto-advance and retry (`feb314f`), voice-sample warning (`75ef4a6`), deployed as version `b3156846-e6bb-4e4a-a14a-ad45b629406b`. The whole paid path was verified for free against a deliberately invalid key before the checkpoint; `.dev.vars` was backed up and restored SHA-identical, and local D1 is back to zero rows. The user then ran it on real data: 6/6 steps done first attempt, $0.097, three drafts they would not publish. Next: Phase 4 (Approval Gate), 2 plans, carrying the three quality todos
 
 03-06 (2026-09-15, gap closure wave, ran in parallel with 03-05): migration 0004 (`43246f1`), coverage stored and exposed in `src/db.ts` (`107bac8`), computed and rendered in `src/runs.tsx` (`7e41764`). Migration applied to local **and remote** D1; **not deployed** — 03-07 owns the deploy. Verified against seeded local D1 (148 of 250 lines on a long transcript, "all 40" on a short one, nothing at all on a seeded pre-0004 run), then all seed rows deleted and local D1 confirmed back to zero. `src/prompts.ts` untouched, as 03-05 owns it this wave
 03-05 (2026-09-15, gap closure wave, ran in parallel with 03-06): failing tests first (`5d687b3`), `checkGrounding` (`12d4c2a`), calibration notes and the blind-spot test (`3394741`). TDD, 34 → 60 tests, `tsc` clean, `src/prompts.ts` still zero imports. Calibrated against production run 1 by exporting the three drafts, the 18,429-char transcript and the three voice samples to the scratchpad; all of it deleted afterwards and nothing but verdicts and counts recorded. Both known failures flipped: draft 1's three citations now resolve, and draft 2's invented slogan is the only phrase flagged across the batch. All three drafts come out `grounded: false`, which inspection says is correct. `migrations/`, `src/db.ts` and `src/runs.tsx` untouched, as 03-06 owned them this wave
@@ -200,5 +214,7 @@ Stopped at: Phase 3 complete. 03-04 — step route (`8433e35`), auto-advance and
 
 04-01 (2026-09-15, Phase 4 wave 1): migration 0005 (`d1fe1e2`), decision write and approved-post read in `src/db.ts` (`82734c1`). Applied to local **and remote** D1 (remote needed one retry past API error 7403). **Not deployed** — 04-03 owns the deploy, so remote schema is deliberately ahead of remote code. `npm run check` 0, `npm test` 57/57 (the plan's "60" was stale; 03-07 deleted three tests), `src/db.ts` still imports nothing. Verified by running each helper's exact SQL against two seeded local runs: `changes() = 1` on accept/edit/reject, **`changes() = 0`** for a draft id from another run with its stored text unchanged, `body` intact beside a rewritten `final_body`, the approved read newest-first and excluding the given run, and the APPR-05 query returning `accepted n=2 delta=0 / edited n=1 delta=19 / rejected n=1 delta=NULL`. All seed rows deleted; local D1 confirmed back to zero
 
-Next: **04-02 (the gate itself)** — accept / edit / reject under each draft on `/runs/:id`, the POST route calling `recordDecision`, and a decision cell per draft on `/runs`. It derives 'edited' by comparing the submitted text with `body`, and must keep rendering the grounding **report** beside the control, never the bare `grounded` boolean. Then 04-03 feeds approved posts into the drafting prompt and deploys. Before the next paid run: open `/health` in a browser
+04-02 (2026-09-15, Phase 4 wave 2): decision form and route (`2bac73b`), decisions in the run list (`ec0199e`). One file, `src/runs.tsx`; `src/db.ts` untouched, which is what keeps `/runs` at two queries by construction. `npm run check` 0, `npm test` 57/57 unchanged, `grep "draft.grounded"` and `grep "read-only"` both empty. Verified against `npm run dev` with two seeded runs (one finished, one mid-generation) plus a zero-draft run: all eight plan checks — including the unchanged-accept submitted with **CRLF** endings, which came back `accepted` with `final_body` byte-equal to `body` — plus bogus/missing decision values, bad ids, an unknown run, an unwritten draft, 5001 characters and a missing `Origin` (403 from `csrf()`). Cross-run accept *and* reject both 404 with the target row untouched. `body` re-compared against the seeded originals on all five rows afterwards: unchanged. Every seeded row deleted, local D1 confirmed back to zero. **Not deployed** — 04-03 owns it
+
+Next: **04-03 (the feedback loop and the deploy)** — `listApprovedPosts(db, MAX_APPROVED_POSTS, runId)` into the drafting prompt, then the single deploy that puts remote code back in step with migration 0005. Before the next paid run: open `/health` in a browser (outstanding since 03-07)
 Resume file: None
