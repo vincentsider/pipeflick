@@ -326,6 +326,23 @@ export type DraftView = {
    */
   final_body: string | null;
   decided_at: string | null;
+  /**
+   * Zernio's `_id` for the draft this post became over there, or NULL if it has
+   * never reached Zernio (migration 0006). It is a receipt for a draft sitting
+   * unscheduled in the executive's Zernio account — never a published post and
+   * never a LinkedIn URL.
+   */
+  zernio_post_id: string | null;
+  /** ISO timestamp of the LAST push attempt, successful or not. */
+  zernio_pushed_at: string | null;
+  /**
+   * A NULL `zernio_post_id` beside a NON-NULL `zernio_error_code` is a FAILED
+   * PUSH, which is a real state: the page renders the error rather than nothing.
+   * A success clears both error fields, so error text can never sit beside a
+   * live post id and render as both at once.
+   */
+  zernio_error_code: string | null;
+  zernio_error_message: string | null;
 };
 
 export type RunView = {
@@ -635,7 +652,10 @@ export async function getRunView(db: D1Database, runId: string): Promise<RunView
   const drafts = await db
     .prepare(
       "SELECT id, position, outlier_id, body, source_lines_json, grounded, grounding_json, " +
-        "status, attempts, error_code, error_message, decision, final_body, decided_at " +
+        "status, attempts, error_code, error_message, decision, final_body, decided_at, " +
+        // Push state rides along in the projection that already runs; SCHED-03
+        // does not buy a fourth read of this table.
+        "zernio_post_id, zernio_pushed_at, zernio_error_code, zernio_error_message " +
         "FROM drafts WHERE run_id = ?1 ORDER BY position",
     )
     .bind(runId)
@@ -783,4 +803,76 @@ export async function listApprovedPosts(
     .bind(excludeRunId, limit)
     .all<{ final_body: string }>();
   return result.results.map((row) => row.final_body);
+}
+
+/* --------------------------------------------------------------------------
+ * Phase 5 push (migration 0006): what happened when a draft went to Zernio.
+ *
+ * Both writers are scoped by run AND draft id, exactly as `recordDecision` is,
+ * and for the same reason: ownership is the WHERE clause. A separate ownership
+ * SELECT would be a second round trip and a race, and `meta.changes` already
+ * says whether the row the caller claimed was really theirs.
+ *
+ * This module still imports nothing — not from ./prompts and not from ./zernio.
+ * Anything either of those knows (a post id, an error code, a cap) arrives as a
+ * primitive the caller passes in.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Record that a draft reached Zernio, with the id Zernio gave it.
+ *
+ * The non-obvious half is the clearing: a success sets both error columns back
+ * to NULL. A draft that failed once and then succeeded is a pushed draft, and
+ * stale error text beside a live post id would render as a success and a
+ * failure at the same time.
+ *
+ * Returns false when nothing was updated, which means the draft id does not
+ * belong to this run; the caller turns that into a 404.
+ */
+export async function recordPush(
+  db: D1Database,
+  runId: string,
+  draftId: number,
+  zernioPostId: string,
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare(
+      "UPDATE drafts SET zernio_post_id = ?1, zernio_pushed_at = ?2, " +
+        "zernio_error_code = NULL, zernio_error_message = NULL, updated_at = ?2 " +
+        "WHERE id = ?3 AND run_id = ?4",
+    )
+    .bind(zernioPostId, now, draftId, runId)
+    .run();
+  return result.meta.changes === 1;
+}
+
+/**
+ * Record that a push failed, with Zernio's own code and message.
+ *
+ * The non-obvious half is what it does NOT touch: `zernio_post_id` is left
+ * alone. A draft that was pushed successfully and later failed a re-push still
+ * has its post sitting in Zernio, and blanking the id would throw away the only
+ * receipt for something that exists over there.
+ *
+ * `message` is capped at `MAX_ERROR_MESSAGE`, the same cap `failJob` puts on job
+ * error text, because it lands in the same place: rendered on the run page and
+ * stored in D1 forever.
+ */
+export async function recordPushFailure(
+  db: D1Database,
+  runId: string,
+  draftId: number,
+  code: string,
+  message: string,
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare(
+      "UPDATE drafts SET zernio_error_code = ?1, zernio_error_message = ?2, " +
+        "zernio_pushed_at = ?3, updated_at = ?3 WHERE id = ?4 AND run_id = ?5",
+    )
+    .bind(code, message.slice(0, MAX_ERROR_MESSAGE), now, draftId, runId)
+    .run();
+  return result.meta.changes === 1;
 }
