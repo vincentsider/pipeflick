@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 3 complete — the drafting loop runs end to end on production. The engine is verified; draft quality is not. Phase 4 (Approval Gate) is next, and carries three quality findings with it
+**Current focus:** Phase 3 gap closure (03-05, 03-06 ✓, 03-07) before Phase 4. The drafting loop runs end to end on production and the engine is verified; draft quality is not. 03-06 has closed the transcript-coverage gap — the executive can now see how much of their meeting reached the model
 
 ## Current Position
 
-Phase: 3 of 5 (Drafting) — complete
-Plan: 4 of 4 complete (03-01, 03-02, 03-03, 03-04). Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04 ✓]
-Status: Phase complete, with a split verdict. A run walks itself to three drafts on production for ~$0.10; 6/6 steps done first attempt. The user's answer to "would you publish these with only light edits?" was NO, so Phase 3 has NOT met the 80% target. Three quality findings deferred to Phase 4. 34 tests green
-Last activity: 2026-09-15 — Completed 03-04-PLAN.md (step route, auto-advance, retry; deployed and run on real data)
+Phase: 3 of 5 (Drafting) — gap closure in progress
+Plan: 03-01 ✓, 03-02 ✓, 03-03 ✓, 03-04 ✓, 03-06 ✓. Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04 ✓] → gap closure [03-05, 03-06 ✓] → [03-07]
+Status: The engine was verified and the drafts were not. 03-VERIFICATION.md found two gaps; 03-06 has closed Gap 2 (silent transcript truncation is now visible before and after a run). Gap 1 (grounding) is 03-05 + 03-07. The 80% approval target remains unmet and untested since run 1
+Last activity: 2026-09-15 — Completed 03-06-PLAN.md (migration 0004, transcript coverage stored and rendered)
 
-Progress: ███████▋░░ 77% (10 of 13 plans)
+Progress: ████████▍░ 85% (11 of 13 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: ~8 min agent time
 - Total execution time: ~1.2 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 verification checkpoints)
 
@@ -29,13 +29,15 @@ Progress: ███████▋░░ 77% (10 of 13 plans)
 |-------|-------|-------|----------|
 | 1 | 3/3 | ~33 min | ~11 min |
 | 2 | 3/3 | ~15 min agent (~27 min wall) | ~5 min |
-| 3 | 4/4 | ~40 min agent (~2.5h wall) | ~10 min |
+| 3 | 5/7 | ~49 min agent (~2.6h wall) | ~10 min |
+| 3 (gap closure) | 1/3 | ~9 min agent | ~9 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
 - Wave 1 of Phase 3 ran two plans in parallel with zero file overlap (03-01: prompts/tests; 03-02: migration/db/openai). 03-02 took ~8 min fully autonomous
 - 03-03 (~5 min, fully autonomous): the fastest plan yet, because 03-02 had already shaped the reads the page needed — the only work was rendering and validation
 - 03-04 (~19 min agent, ~2h wall): the longest agent time of the phase, because the whole paid path was verified for free first — nine page states and every failure mode driven against a deliberately invalid key before a penny was spent
+- 03-06 (~9 min, fully autonomous, gap closure wave): a migration, two files and a rendering change; about half the time went on seeding local D1 with a long transcript, a short one and a pre-migration run so all three coverage states could be seen rather than reasoned about
 - Trend: steady — Phase 2 averaged ~5 min per plan; the wall-clock cost is concentrated in the two verification checkpoints (02-03, 03-04), which is exactly where a human should be in the loop (first real executive data, then first real output)
 
 ## Accumulated Context
@@ -102,6 +104,12 @@ Recent decisions affecting current work:
 - 03-04: `runs.status` is recomputed from the job rows after every step (`runStatus`/`reconcileRunStatus`), reusing the `getRunView` the drafting branch already needs. `createRun` writes `pending` once and nothing else maintained it
 - 03-04: every `sk-` run is scrubbed out of an error message before it reaches D1 — OpenAI's `invalid_api_key` text quotes the key back masked, and CLAUDE.md forbids rendering any part of a secret
 - 03-04: the Responses-API request shape from 03-02 (flattened `text.format`, `store: false`, `reasoning.effort: "low"`) is **confirmed against the live API**; `gpt-5.6-terra` and `gpt-5.6-sol` both resolve
+- 03-06: migration 0004 adds `runs.transcript_lines_used`, `runs.transcript_lines_total` and `drafts.grounding_json` — all nullable, applied to local AND remote D1 (first attempt, no 7403 this time). `grounding_json` rides along empty so 03-07 needs no migration and remote D1 was altered once, not twice
+- 03-06: coverage is **computed by the caller and stored as two primitives** — `createRun(db, transcriptId, bodies, { linesUsed, linesTotal })`. `src/db.ts` still imports nothing from `src/prompts.ts`; that boundary is the Jersey/JFSC guard and a convenience overload taking a transcript row would break it
+- 03-06: the counts are frozen at run creation, never recomputed at render. A re-imported transcript changes the body, and a recomputed figure would drift away from the drafts sitting beside it
+- 03-06: either count NULL renders **nothing** — not "unknown", not a guess from `line_count`. Runs predating 0004 have no coverage figure, and inventing one is the exact over-claiming the gap exists to fix
+- 03-06: `listTranscripts` selects `length(body) AS body_chars` and `TranscriptSummary` is now `Omit<TranscriptRow, "body"> & { body_chars: number }`. The body never leaves D1; only its length does. It is a threshold for the new-run warning, never a displayed figure — the pre-run warning carries no number at all, because characters on one page against lines on another destroys trust in both
+- 03-06: a cut transcript is amber `.notice.warn`, matching 03-03's ungrounded-draft treatment — the run is fine, the drafts simply had less to work with
 - 03-04 (measured, run 1): **$0.097 per run**, about half the research's ~$0.19 estimate. 16,730 input / 1,979 output tokens across 6 calls; **zero** reasoning tokens on all three terra extractions. At two runs a week that is ~$0.80/month — model cost is not a constraint, quality is. The `MODEL_DRAFT` → `gpt-6-astra` lever is nearly free to test
 
 ### Pending Todos
@@ -110,8 +118,8 @@ Recent decisions affecting current work:
   - `.planning/todos/pending/normalise-grounding-match.md` — `isGrounded` is wrong in both directions, and only ever checks the 1-3 reported citations, never the rest of the post
   - `.planning/todos/pending/steer-draft-topics.md` — no topic input anywhere, and the three drafting calls run blind to each other
   - `.planning/todos/pending/context-layer-for-drafts.md` — live context retrieval. Recorded only; the user decided 2026-09-15 not to insert it as a phase yet
-- Phase 4 (small, fold into whichever plan next touches `src/db.ts`): `usage_json` does not capture `usage.input_tokens_details.cached_tokens`, so prompt-cache effectiveness is unmeasurable from D1
-- Phase 4 (small): `excerptTranscript` returns `linesUsed`/`linesTotal` and no page renders them. Run 1 silently used ~12,000 of an 18,429-character meeting
+- Phase 4 (small): `usage_json` does not capture `usage.input_tokens_details.cached_tokens`, so prompt-cache effectiveness is unmeasurable from D1. 03-06 touched `src/db.ts` and deliberately did **not** fold it in — it belongs to the drafting write path (`finishDraft`) that 03-07 is editing in the same wave. Fold it into whichever plan next touches `finishDraft` alone
+- ~~Phase 4 (small): `excerptTranscript` returns `linesUsed`/`linesTotal` and no page renders them~~ — **closed by 03-06.** The counts are stored on the run at creation and rendered on the run page; a transcript that will be cut is flagged on the new-run form before the run is paid for. Run 1's own coverage stays permanently unknown (it predates the columns)
 - Still pending (low, hardening): narrow the transcript prop on the Fireflies import preview — see `.planning/todos/pending/narrow-transcript-prop-type.md`. It said to pick this up in any Phase 3 plan touching `fireflies-routes.tsx`; none did, so it stays pending for Phase 4
 
 - Phase 5: re-research and re-plan against the Zernio API before planning that phase (the doc rename is done; the API research is not)
@@ -127,18 +135,21 @@ Recent decisions affecting current work:
 - Phase 3 (compliance, from research): every OpenAI request must set `store: false` — the Responses API default is 30-day application-state retention. Abuse-monitoring logs are still kept 30 days and need a ZDR agreement to change; state this honestly rather than claiming no retention
 - Phase 3 (compliance, from research): the prompt builder must take primitives only, never a TranscriptRow — Fireflies meeting titles routinely name the counterparty, so passing the row would send a client identifier to OpenAI. Assert it in a test
 - Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
-- Phase 3 (03-02, info): `npm run db:migrate:remote` failed once with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeded on an immediate retry. Transient API-side failure — retry before re-authenticating
+- Phase 3 (03-02, info): `npm run db:migrate:remote` failed once with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeded on an immediate retry. Transient API-side failure — retry before re-authenticating. 03-06's remote migration went through first attempt, so it stays a one-off
 - **Phase 3 (03-04, THE open risk of this project): draft quality does not clear the bar.** Run 1 produced three drafts the user would NOT publish with light edits. The 80% target is unmet with exactly one data point behind it. The engine is verified and is not the problem — the three findings are: a grounding check that passes invented material, three drafts colliding on the same topic with no topic input anywhere, and a ceiling of "common sense" because one meeting transcript is the only substance source. **Phase 4 must not be called a success while the drafts stay unpublishable**; the approval gate will faithfully record a low rate, which is the point, but the three todos are what move it
+- Phase 3 (03-06, info): the deployed bundle does **not** yet include the coverage UI — 03-06 migrated remote D1 but did not deploy. Production is running the pre-0004 code against a post-0004 schema, which is safe (three unread nullable columns) until 03-07's deploy
 - Phase 3 (03-04, resolved): `OpenAIError.retryable` is not stored on the job row — resolved by the default-deny `RETRYABLE_ERROR_CODES` map in `src/runs.tsx`; no column added
 - Phase 3 (03-03, resolved by 03-04): the run page's "Nothing has run yet" notice has been rewritten now that an engine exists
 - Phase 3 (03-04, info): prompt caching was **eligible** on drafts 2 and 3 (byte-stable ~4,700-token prefix, well over the 1,024 minimum) but cannot be proven from D1 — `cached_tokens` is not stored. Recorded as eligible, not proven
 - Phase 3 (03-04, info): CPU ms per step was not captured. Indirect evidence only — six steps on the Free plan with the largest payload the input caps allow, no Error 1102 `exceededCpu`
 - Phase 3 (03-03, minor): `/runs` lists every run with no paging, like `/sources`. Fine at pilot scale, but `listRuns` counts jobs per run with subqueries, so a long history would want a limit
-- Phase 3 (03-03, minor): `POST /runs` calls `getTranscript` only to prove the transcript exists, loading the whole body to discard it. Harmless at one executive's scale
+- Phase 3 (03-03, resolved by 03-06): `POST /runs` loaded the whole transcript body only to prove the row existed and then discarded it. That read now pays for the coverage counts stored on the run
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
 ## Session Continuity
 
 Last session: 2026-09-15
 Stopped at: Phase 3 complete. 03-04 — step route (`8433e35`), auto-advance and retry (`feb314f`), voice-sample warning (`75ef4a6`), deployed as version `b3156846-e6bb-4e4a-a14a-ad45b629406b`. The whole paid path was verified for free against a deliberately invalid key before the checkpoint; `.dev.vars` was backed up and restored SHA-identical, and local D1 is back to zero rows. The user then ran it on real data: 6/6 steps done first attempt, $0.097, three drafts they would not publish. Next: Phase 4 (Approval Gate), 2 plans, carrying the three quality todos
+
+03-06 (2026-09-15, gap closure wave, ran in parallel with 03-05): migration 0004 (`43246f1`), coverage stored and exposed in `src/db.ts` (`107bac8`), computed and rendered in `src/runs.tsx` (`7e41764`). Migration applied to local **and remote** D1; **not deployed** — 03-07 owns the deploy. Verified against seeded local D1 (148 of 250 lines on a long transcript, "all 40" on a short one, nothing at all on a seeded pre-0004 run), then all seed rows deleted and local D1 confirmed back to zero. `src/prompts.ts` untouched, as 03-05 owns it this wave
 Resume file: None
