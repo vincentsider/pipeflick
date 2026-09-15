@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 2 — Voice Sources complete (verified 2026-09-15); Phase 3 — Drafting is next
+**Current focus:** Phase 3 — Drafting is planned (4 plans in 3 waves), ready to execute
 
 ## Current Position
 
-Phase: 2 of 5 (Voice Sources)
-Plan: 3 of 3 — all Phase 2 plans complete (speaker filter; sources storage and views; Fireflies import)
-Status: Phase 2 complete and verified 2026-09-15 (5/5 roadmap criteria, 11/11 plan truths, no gaps)
-Last activity: 2026-09-15 — Completed 02-03-PLAN.md (Fireflies client, /fireflies import routes, deployed, checkpoint approved)
+Phase: 3 of 5 (Drafting)
+Plan: 0 of 4 — planned, not started. Waves: [03-01, 03-02] parallel → [03-03] → [03-04]
+Status: Phase 3 planned 2026-09-15 from 03-RESEARCH.md; Phase 2 complete and verified (5/5 roadmap criteria, 11/11 plan truths, no gaps)
+Last activity: 2026-09-15 — Created 03-01..03-04 PLAN.md (discovery Level 0; 03-RESEARCH.md was sufficient)
 
-Progress: ██████░░░░ 55% (6 of 11 plans)
+Progress: █████░░░░░ 46% (6 of 13 plans)
 
 ## Performance Metrics
 
@@ -69,10 +69,16 @@ Recent decisions affecting current work:
 - 02-03: one GraphQL request per page view — `user` and `transcripts(limit: 50, skip)` ride in the same query. An import costs 2 requests (preview + confirm) because the confirm re-fetches rather than posting sentences from the browser, keeping other participants' text inside the Worker
 - 02-03: a speaker option is selectable only when `keepSpeakerLines` actually returns lines for that label, which disables the `UNKNOWN_SPEAKER` group; `matchSpeaker` is given only importable labels; zero kept lines is a 422 re-render that writes nothing
 - 02-03: Fireflies plan tier is unconfirmed — the Free-plan budget of 50 requests/day stays the working assumption; any future polling/webhook feature must re-check the tier first
+- 03 plan: architecture is one OpenAI call per Worker invocation driven by D1 job rows (migration 0003: `runs`, `outliers`, `drafts`) plus a self-submitting POST form. Rejected: all-calls-in-one-request (no status, loses everything on disconnect), `Promise.all` (no status, no prompt cache), `ctx.waitUntil` (caps at 30s), Queues / Durable Objects / Workflows (all free-tier available, but over-build for one user), cron sweep (60s granularity). Revisit Workflows if a run grows past ~10 steps
+- 03 plan: models are `gpt-5.6-terra` (extraction) and `gpt-5.6-sol` (drafting), both `reasoning.effort: "low"`, via the **Responses** API (`text.format` json_schema — flattened, NOT Chat Completions' `response_format`). Raw `fetch`, no `openai` package. ~$0.19/run. The quality lever if approval is under 80% is one constant: swap drafting to `gpt-6-astra`
+- 03 plan: `src/prompts.ts` is pure and import-free by design — `buildDraftingInput` takes primitives only, so no code path can send a Fireflies meeting title (which names counterparties) or a speaker label to OpenAI. Asserted in `test/prompts.test.ts`
+- 03 plan: `store: false` on every OpenAI request (the Responses default is 30-day application-state retention). Abuse-monitoring logs are still kept 30 days; changing that needs a ZDR agreement — state it honestly, do not claim zero retention
+- 03 plan: claim-then-work before every call (`SELECT` then conditional `UPDATE`, `meta.changes === 1`); no `RETURNING` (undocumented in D1). Auto-advance renders its `<script>` only when work is claimable, the last failure was retryable and `attempts < 2` — otherwise a bad key loops forever
+- 03 plan: `outliers.template_json` is stored but never rendered, and is excluded from the `getRunView` projection so OUTL-02 is structural rather than a rendering discipline
 
 ### Pending Todos
 
-- Phase 3 (low, hardening): narrow the transcript prop on the Fireflies import preview so `sentences` is not passed into a `Meeting`-typed component — see `.planning/todos/pending/narrow-transcript-prop-type.md`
+- Still pending (low, hardening): narrow the transcript prop on the Fireflies import preview — see `.planning/todos/pending/narrow-transcript-prop-type.md`. It says to pick this up in any Phase 3 plan touching `fireflies-routes.tsx`; none of 03-01..03-04 does, so it stays pending for Phase 4
 
 - Phase 5: re-research and re-plan against the Zernio API before planning that phase (the doc rename is done; the API research is not)
 
@@ -91,6 +97,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-15 07:08 UTC
-Stopped at: Completed 02-03-PLAN.md — Phase 2 is done. Fireflies client + /fireflies routes are deployed (version f20df031-5ab9-413d-abbe-07c7d1b7be84) and the human checkpoint was approved on a real meeting import. Phase 3 (drafting) is next and reads from `getTranscript`/`listTranscripts`/`listVoiceSamples`; research Worker request-time limits versus multiple OpenAI calls before planning it
+Last session: 2026-09-15
+Stopped at: Phase 3 planned. 4 plans in 3 waves, all derived from 03-RESEARCH.md (no extra discovery needed). Architecture: one OpenAI Responses call per Worker invocation, driven by a D1 job table (migration 0003) — no queue, Durable Object, Workflow or paid plan. Next: `/gsd:execute-phase 3`
 Resume file: None

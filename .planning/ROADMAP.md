@@ -66,13 +66,15 @@ Plans:
   2. The run produces exactly three drafts, each filled from one of the run's extracted templates
   3. Drafts contain only material from the executive's transcript lines and voice samples; templates are stored but never shown in the UI
   4. User sees the run's status while it generates, sees a clear error if OpenAI fails, and can retry
-**Research**: Likely (fast-moving LLM API on a constrained runtime)
+**Research**: Complete (see 03-RESEARCH.md, 2026-09-15)
 **Research topics**: Current OpenAI API and model choice for extraction and drafting; structured output for the template shape; Worker CPU and request time limits versus multi-call generation (waitUntil, queues or a Durable Object if needed); prompt design for template extraction and voice-matched drafting
-**Plans**: 2 plans
+**Plans**: 4 plans in 3 waves
 
 Plans:
-- [ ] 03-01: Outlier paste and template extraction with OpenAI, stored hidden
-- [ ] 03-02: Run creation, three-draft generation, status and retry
+- [ ] 03-01: Prompt builders, schemas and grounding check (TDD, pure) — wave 1
+- [ ] 03-02: Migration 0003, run/job helpers, OpenAI Responses client — wave 1
+- [ ] 03-03: Run list, new-run form, run creation and status view — wave 2
+- [ ] 03-04: Step engine, auto-advance, retry, deploy and human check — wave 3
 
 ### Phase 4: Approval Gate
 **Goal**: Every draft gets a recorded human decision, and approved posts shape the next run
@@ -115,6 +117,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-09-14 |
 | 2. Voice Sources | 3/3 | Complete | 2026-09-15 |
-| 3. Drafting | 0/2 | Not started | - |
+| 3. Drafting | 0/4 | Planned | - |
 | 4. Approval Gate | 0/2 | Not started | - |
 | 5. Zernio Push | 0/1 | Not started | - |
