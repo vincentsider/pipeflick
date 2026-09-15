@@ -507,6 +507,22 @@ describe("checkGrounding", () => {
     expect(report.grounded).toBe(false);
   });
 
+  it("cannot catch a short invented sentence said only once, and says so by counting it", () => {
+    // The blind spot, pinned deliberately. "Margins doubled." is fabricated, two
+    // tokens, and printed once: below the claim threshold and below the repeat
+    // threshold. It lands in `skipped`, which is why `skipped` is reported at all.
+    // Phase 3 failed once by over-claiming what a grounding check meant.
+    const report = checkGrounding(
+      "We spent about six months getting the fund administration margin right.\n\nMargins doubled.",
+      ["We spent about six months getting the fund administration margin right."],
+      sources,
+    );
+
+    expect(report.skipped).toBe(1);
+    expect(report.unsupported).toEqual([]);
+    expect(report.grounded).toBe(true);
+  });
+
   it("handles an empty post without claiming it is grounded by accident", () => {
     const report = checkGrounding("", [], sources);
 

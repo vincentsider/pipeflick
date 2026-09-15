@@ -283,6 +283,13 @@ export const GROUNDING_SUPPORT_RATIO = 0.5;
  */
 export const GROUNDING_REPEAT_TOKENS = 6;
 
+// Calibrated against production run 1 (three drafts, one 18,429-char transcript,
+// three voice samples). Nothing moved, and that is a measurement rather than a
+// default left untouched: sweeping GROUNDING_SUPPORT_RATIO from 0.5 down to 0.25
+// changed 1 to 3 of the 45 claim-bearing sentences and changed no draft's verdict,
+// so a lower value buys leniency without buying a decision. Move it only when a
+// run exists where it would change an answer, and say which run in this comment.
+
 /**
  * Openers a model trims off a quote while "tidying" it, longest match first.
  * Speech stacks them ("so and...", "well, okay,..."), so stripping runs twice.
@@ -489,9 +496,14 @@ function findRepeatedPhrases(postTokens: string[], poolRepeats: Set<string>): st
  * inside the Workers Free-plan 10ms CPU budget for a ~220-word post against an
  * ~18,000-character pool.
  *
- * What this CANNOT prove, and must not be read as proving: a short invented
- * sentence that is never repeated is counted in `skipped`, not caught. The report
- * says how much it did not look at for exactly that reason.
+ * What this CANNOT prove, and must not be read as proving:
+ * - A short invented sentence said once is counted in `skipped`, not caught. It is
+ *   below both the claim threshold and the repeat threshold. Pinned by test.
+ * - This matches WORDS, not meaning. A sentence that compresses a real transcript
+ *   idea into the model's own vocabulary is reported unsupported even though the
+ *   idea is the executive's. On production run 1 most unsupported sentences were
+ *   of that kind, which is why `unsupported` is a list the reviewer reads rather
+ *   than a count they act on blindly.
  */
 export function checkGrounding(post: string, sourceLines: string[], sources: string[]): GroundingReport {
   const poolNormalised = normaliseForMatch(sources.join("\n"));
