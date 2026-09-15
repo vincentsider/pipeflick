@@ -5,34 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 2 — Voice Sources (Phase 1 verified 2026-09-14)
+**Current focus:** Phase 2 — Voice Sources complete (verified 2026-09-15); Phase 3 — Drafting is next
 
 ## Current Position
 
 Phase: 2 of 5 (Voice Sources)
-Plan: 02-01 and 02-02 complete (speaker filter; sources storage and views); 02-03 remaining
-Status: In progress — Phase 2 wave 1 complete
-Last activity: 2026-09-15 — Completed 02-02-PLAN.md (migration 0002, /settings, /sources)
+Plan: 3 of 3 — all Phase 2 plans complete (speaker filter; sources storage and views; Fireflies import)
+Status: Phase 2 complete — human-verified on a real meeting import
+Last activity: 2026-09-15 — Completed 02-03-PLAN.md (Fireflies client, /fireflies import routes, deployed, checkpoint approved)
 
-Progress: █████░░░░░ 45% (5 of 11 plans)
+Progress: ██████░░░░ 55% (6 of 11 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: ~8 min agent time
-- Total execution time: ~0.67 hours agent time (excluding user time on the Cloudflare dashboard and filling .dev.vars)
+- Total execution time: ~0.8 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 verification checkpoint)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 3/3 | ~33 min | ~11 min |
-| 2 | 2/3 | ~7 min | ~3.5 min |
+| 2 | 3/3 | ~15 min agent (~27 min wall) | ~5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~3 min), 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01)
-- Trend: faster — Phase 2 wave 1 ran two plans in parallel with no human pause; 02-02's only slow step was the remote D1 migration
+- Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
+- Trend: steady — Phase 2 averaged ~5 min per plan; the only wall-clock cost was the single verification checkpoint in 02-03, which is exactly where a human should be in the loop (first real executive data)
 
 ## Accumulated Context
 
@@ -64,6 +64,11 @@ Recent decisions affecting current work:
 - 02-02: `csrf()` from hono/csrf is registered app-wide right after `requireAccess`, so no future POST route can forget the Origin check. Form pattern is POST → validate → 303 redirect with a `?saved=1` flash; no client JS anywhere
 - 02-02: feature routers are `export const x = new Hono<AppEnv>()` mounted with `app.route("/", x)`; `src/layout.tsx` owns the shared nav (Home, Sources, Fireflies, Settings, Health) and all CSS
 - 02-02: an empty speaker name is valid and clears the setting; route-level validation (id `^[A-Za-z0-9_-]{1,100}$`, sample ≤ 20000 chars, name ≤ 200 chars) returns plain-text 400 before touching D1
+- 02-03: `src/fireflies.ts` takes the API key as an argument and never reads env, never logs, and never puts the key, request body or transcript text in an error. Routes are the only place touching `c.env.FIREFLIES_API_KEY`; a missing key renders a 500 pointing at /health and makes no request
+- 02-03: Fireflies returns HTTP 200 with a populated `errors[]` array, so both status and body are checked; `FirefliesError` carries `code` (Fireflies code, else `http_<status>`). `object_not_found` → 404, everything else → 502 rendering Fireflies' own message plus code (never a stack)
+- 02-03: one GraphQL request per page view — `user` and `transcripts(limit: 50, skip)` ride in the same query. An import costs 2 requests (preview + confirm) because the confirm re-fetches rather than posting sentences from the browser, keeping other participants' text inside the Worker
+- 02-03: a speaker option is selectable only when `keepSpeakerLines` actually returns lines for that label, which disables the `UNKNOWN_SPEAKER` group; `matchSpeaker` is given only importable labels; zero kept lines is a 422 re-render that writes nothing
+- 02-03: Fireflies plan tier is unconfirmed — the Free-plan budget of 50 requests/day stays the working assumption; any future polling/webhook feature must re-check the tier first
 
 ### Pending Todos
 
@@ -72,13 +77,15 @@ Recent decisions affecting current work:
 ### Blockers/Concerns
 
 - Phase 1 (resolved in 01-02): Zero Trust enabled and the Worker protected via the dashboard; `ctx.access` confirmed working, no jose fallback
-- Phase 2 (follow-up): confirm the dashboard Access policy is an explicit email allow-list (owner@example.com, owner.alt@example.com) rather than the default account-wide rule before real transcripts are imported
+- Phase 2 (02-03, closed): the Access policy check was step 1 of the 02-03 verification. The user confirmed the checkpoint, including that step; whether it required a change was not reported
 - Phase 2 (02-02, minor): `/sources` loads every transcript summary and every sample body in one page render; fine for one executive at pilot scale, needs DB-level paging/truncation if the archive grows
+- Phase 2 (02-03, ongoing): Fireflies is US-hosted. Storing only the executive's own lines is the mitigation, not a resolution, of the Jersey/GDPR transfer question in CLAUDE.md
+- Phase 2 (02-03, minor): `/fireflies` shows one page of 50 meetings with skip paging only — no search or date filter. Fine at pilot scale
 - Phase 3: Worker request time limits may not fit several OpenAI calls in one request; research before planning
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
 ## Session Continuity
 
-Last session: 2026-09-15 06:47 UTC
-Stopped at: Completed 02-01-PLAN.md (speaker filter + vitest) and 02-02-PLAN.md (migration 0002, /settings, /sources). 02-03 (Fireflies import) is next: it consumes src/speaker-filter.ts, `upsertTranscript` and the `speaker.name` setting, and mounts /fireflies (already linked from the nav, 404 until then)
+Last session: 2026-09-15 07:08 UTC
+Stopped at: Completed 02-03-PLAN.md — Phase 2 is done. Fireflies client + /fireflies routes are deployed (version f20df031-5ab9-413d-abbe-07c7d1b7be84) and the human checkpoint was approved on a real meeting import. Phase 3 (drafting) is next and reads from `getTranscript`/`listTranscripts`/`listVoiceSamples`; research Worker request-time limits versus multiple OpenAI calls before planning it
 Resume file: None
