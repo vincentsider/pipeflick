@@ -56,3 +56,25 @@ not just the citations. Options: sentence-level attribution of every claim-beari
 back to transcript or voice samples; a cheap second model pass scoring the post against its
 sources; or at minimum a verbatim-repetition detector, which would have caught draft 2 on its
 own.
+
+
+---
+
+## CLOSED — 2026-09-15, by 03-05 (check) and 03-07 (wiring)
+
+Both directions are fixed, and the fix was the larger one this note called for: the check reads
+the **whole post**, not just the citations.
+
+- `checkGrounding(post, sourceLines, sources)` in `src/prompts.ts` — normalised citation
+  resolution, per-sentence attribution by 4-token shingle overlap, and a 6-token n-gram repeat
+  detector. Calibrated against run 1: draft 1's three citations now resolve, and draft 2's
+  invented slogan is the only phrase flagged across the batch.
+- `isGrounded` is **deleted**, so the citation-only surface cannot be checked again.
+- The report is stored in `drafts.grounding_json` and rendered beside each draft — the named
+  untraceable lines, any repeated phrase, `supported / checked`, and what was skipped. The
+  boolean is never the UI.
+- Live on production as version `f17cf55d-e6e8-4b04-bbaf-600fba5e7c93`.
+
+**What this did not do:** it fixed the instrument, not the output. The check matches words, not
+meaning, and a short invented sentence said once still lands in `skipped`. Draft quality is
+unchanged — see `steer-draft-topics.md` and `context-layer-for-drafts.md`, both still open.
