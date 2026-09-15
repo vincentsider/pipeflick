@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** **Phase 3 is complete and deployed.** Next is Phase 4 (Approval Gate), which must be planned. The drafting loop runs end to end on production and the engine is verified; draft quality is not, and this gap-closure wave did not change it. The executive can now see how much of their meeting reached the model and which lines of a draft cannot be traced back to their own words — both are measurement, neither makes a draft better
+**Current focus:** **Phase 4 (Approval Gate) is under way.** 04-01 built the data model for the decision — original text, final text, decision, timestamp — so the 80% light-edit claim is one SQL query from the data. Next is 04-02, the gate itself (accept / edit / reject on the run page), then 04-03, which feeds approved posts back into the drafting prompt. Draft quality is still unaddressed: the gate measures the number, the two open todos are what move it
 
 ## Current Position
 
-Phase: 3 of 5 (Drafting) — **complete**
-Plan: 03-01 ✓, 03-02 ✓, 03-03 ✓, 03-04 ✓, 03-05 ✓, 03-06 ✓, 03-07 ✓. Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04 ✓] → gap closure [03-05 ✓, 03-06 ✓] → [03-07 ✓]
-Status: Both gaps from 03-VERIFICATION.md are closed in code and live on production (version `f17cf55d`). Gap 2 (silent transcript truncation) is visible before and after a run. Gap 1 (grounding) reads the whole post, stores its report and renders it beside each draft; `isGrounded` is deleted. **The 80% approval target remains unmet and untested since run 1** — the wave fixed the instrument, not the output, and the two findings that actually move draft quality (topic collision, thin substance base) are open Phase 4 todos
-Last activity: 2026-09-15 — Completed 03-07-PLAN.md (grounding wired in, rendered and deployed), then re-verified the phase. 03-VERIFICATION.md status is `human_needed`, not `passed`: 4/4 truths verified in code by adversarial probe against the real `checkGrounding` (not by trusting the green tests, which is how the original gap survived), with three items awaiting live confirmation
+Phase: 4 of 5 (Approval Gate) — in progress
+Plan: 04-01 ✓ of 3. Waves: [04-01 ✓] → [04-02] → [04-03]. Phase 3 complete: 03-01 ✓ … 03-07 ✓
+Status: Migration 0005 is applied to **local and remote** D1: `drafts` carries `decision`, `final_body` and `decided_at`, with `body` never overwritten so an edit stays measurable. `recordDecision` (run-scoped UPDATE) and `listApprovedPosts` (newest-first, excluding one run) are in `src/db.ts`. **Nothing is deployed and no UI exists yet** — remote schema is ahead of remote code on purpose, as 03-06 left it; 04-03 owns the deploy. **The 80% approval target remains unmet and untested since run 1**: this plan built the meter, not the engine
+Last activity: 2026-09-15 — Completed 04-01-PLAN.md (decision columns and the two D1 helpers the rest of Phase 4 writes through). Verified by driving each helper's exact SQL against seeded local D1, including the negative case (a draft id from another run changes 0 rows), then deleting every seeded row
 
-Progress: ██████████ 100% (13 of 13 plans created; Phases 4 and 5 are not yet planned)
+Progress: █████████░ 88% (14 of 16 plans created; Phase 5 is not yet planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: ~8 min agent time
-- Total execution time: ~1.6 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 / 03-07 verification checkpoints)
+- Total execution time: ~1.7 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 / 03-07 verification checkpoints)
 
 **By Phase:**
 
@@ -31,6 +31,7 @@ Progress: ██████████ 100% (13 of 13 plans created; Phases 4 
 | 2 | 3/3 | ~15 min agent (~27 min wall) | ~5 min |
 | 3 | 7/7 | ~61 min agent (~3h wall) | ~9 min |
 | 3 (gap closure) | 3/3 | ~33 min agent | ~11 min |
+| 4 | 1/3 | ~7 min agent | ~7 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
@@ -40,6 +41,7 @@ Progress: ██████████ 100% (13 of 13 plans created; Phases 4 
 - 03-06 (~9 min, fully autonomous, gap closure wave): a migration, two files and a rendering change; about half the time went on seeding local D1 with a long transcript, a short one and a pre-migration run so all three coverage states could be seen rather than reasoned about
 - 03-05 (~12 min, fully autonomous TDD, ran in parallel with 03-06): RED/GREEN took ~5 min; the other ~7 went on calibrating against the real production drafts — exporting run 1, sweeping thresholds, and checking whether a flagged sentence was actually a fabrication before accepting the verdict. The measurement is what made the SUMMARY honest, and it contradicted the plan
 - 03-07 (~12 min agent, ~25 min wall with one blocking checkpoint): two code commits and a deploy; roughly half the agent time went on seeding local D1 with seven drafts so all six render branches — including a deliberately malformed `grounding_json` — were seen rather than reasoned about
+- 04-01 (~7 min, fully autonomous): a migration and one file. Roughly half the time went on seeding local D1 with two runs so the run-scoping guard could be *measured* (`SELECT changes()` after each UPDATE) rather than reasoned about — the cross-run UPDATE changing 0 rows is the whole security claim of the plan
 - Trend: steady — Phase 2 averaged ~5 min per plan; the wall-clock cost is concentrated in the verification checkpoints (02-03, 03-04, 03-07), which is exactly where a human should be in the loop (first real executive data, then first real output, then the instrument that judges it)
 
 ## Accumulated Context
@@ -131,6 +133,13 @@ Recent decisions affecting current work:
 - 03-07: every state with a report also prints what was **not** examined ("N short or connecting lines were too generic to check"). The check matches words, not meaning, and Phase 3 already failed once by letting a narrow check read as a whole-output guarantee
 - 03-07: `usage_json` now records `input_tokens_details.cached_tokens` (and `src/openai.ts`'s `Usage` declares it). Rows written before this commit have **no** `cached_tokens` key — absence means unknown, not zero cache hits
 
+- 04-01: **migration 0005** adds `drafts.decision` ('accepted'|'edited'|'rejected'), `drafts.final_body` and `drafts.decided_at`, all nullable, applied to local **and remote** D1. NULL decision = undecided and is a real state. **`body` is never overwritten by an edit** — it is the model's original output and the load-bearing half of APPR-05; a row that lost it could never again say how much the executive changed
+- 04-01: `final_body` is written on **accept** as well as edit (a copy of `body`), so "the final text" is a column and not a `COALESCE` every reader must remember. NULL only on rejected and undecided. The APPR-05 query lives in the migration header and has been run; `avg_char_delta` is documented as a **proxy** for edit size, never an edit distance, and is NULL (not 0) for rejected rows
+- 04-01: **ownership is the WHERE clause.** `recordDecision(db, runId, draftId, decision, finalBody)` is one UPDATE scoped by `id` AND `run_id`, returning `meta.changes === 1`; the caller turns false into a 404. No separate ownership SELECT — that would be a second round trip and a race. Measured: the same draft id under the wrong run changes 0 rows. Deciding twice overwrites, and `decided_at` means the last decision
+- 04-01: `listApprovedPosts(db, limit, excludeRunId)` returns `final_body` for `decision IN ('accepted','edited')`, newest first. **`excludeRunId` is not padding**: it keeps a run's own drafts out of its own prompt (stopping draft 3 echoing draft 1 after a mid-run approval) and keeps the cacheable prompt prefix byte-stable across a run's three drafting calls. `limit` stays a caller-computed primitive so `src/db.ts` still imports **nothing** from `src/prompts.ts`
+- 04-01: `listRuns` carries per-draft decisions via **one extra flat query grouped in JS**, not four more correlated subqueries per row and not a per-run read. Two queries for the whole page, still no bodies. `DraftView` and `getRunView` carry `decision`, `final_body` and `decided_at`
+- 04-01: the DB layer **does not derive 'edited'** — 04-02's route compares the submitted text against `body` and decides. A self-reported edit flag would measure what people claim rather than what they did
+
 ### Pending Todos
 
 - **Phase 4, high — the draft-quality findings from 03-04's real run. Two of the three are still open, and they interact:**
@@ -154,7 +163,7 @@ Recent decisions affecting current work:
 - Phase 3 (compliance, from research): every OpenAI request must set `store: false` — the Responses API default is 30-day application-state retention. Abuse-monitoring logs are still kept 30 days and need a ZDR agreement to change; state this honestly rather than claiming no retention
 - Phase 3 (compliance, from research): the prompt builder must take primitives only, never a TranscriptRow — Fireflies meeting titles routinely name the counterparty, so passing the row would send a client identifier to OpenAI. Assert it in a test
 - Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
-- Phase 3 (03-02, info): `npm run db:migrate:remote` failed once with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeded on an immediate retry. Transient API-side failure — retry before re-authenticating. 03-06's remote migration went through first attempt, so it stays a one-off
+- Phase 3/4 (03-02, 04-01, info): `npm run db:migrate:remote` fails with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeds on an immediate retry. **Two occurrences in three remote migrations** (03-02 and 04-01; 03-06 went through first attempt), so this is a recurring transient, not a one-off. Always retry once before re-authenticating
 - **Phase 3 (03-04, THE open risk of this project): draft quality does not clear the bar.** Run 1 produced three drafts the user would NOT publish with light edits. The 80% target is unmet with exactly one data point behind it. The engine is verified and is not the problem — the three findings are: a grounding check that passes invented material (**closed by 03-05/03-07**), three drafts colliding on the same topic with no topic input anywhere (**open**), and a ceiling of "common sense" because one meeting transcript is the only substance source (**open**). **Phase 4 must not be called a success while the drafts stay unpublishable**; the approval gate will faithfully record a low rate, which is the point, but the todos are what move it. Note what the closed one bought: the gap-closure wave fixed the *instrument*, not the output — the next run produces drafts of the same quality as the last, better described
 - **Phase 3 (03-05, acted on by 03-07): `grounded` is `false` on all three production drafts, and correctly so.** A boolean that is false on 3/3 real drafts is exactly as uninformative as one that is true on 3/3. **The tick is not the UI** — 03-07 renders the report (`supported / checked`, the named `unsupported` lines, the `repeated` phrases, and `skipped`) and never the bare boolean. Keep it that way in Phase 4's approval gate
 - Phase 3 (03-05, evidence): the plan expected draft 1 to flip to `grounded: true`. It did not, and that is the right answer — its citations do now resolve, but the post asserts "between 20% and 40%" and `20%` appears **zero times** in the executive's material. Draft 3 also moved from stored `1` to `false`. Reported rather than tuned away, per the plan's own instruction; no threshold in the 0.25-0.5 range makes any draft fully supported
@@ -189,5 +198,7 @@ Stopped at: Phase 3 complete. 03-04 — step route (`8433e35`), auto-advance and
 
 03-07 (2026-09-15, gap closure wave 2): report stored and proxy retired (`ee26339`), whole-post check called and rendered (`116f4ef`), deployed as version `f17cf55d-e6e8-4b04-bbaf-600fba5e7c93`. `isGrounded` deleted from `src/` and `test/`; `npm run check` 0, `npm test` 57/57; `src/db.ts` still imports nothing. All six render states driven against a hand-seeded seven-draft run in local D1 — legacy-null, clean, five capped unsupported lines with "and 7 more", one repeated phrase, `grounding_json` set literally to `not json` (page still 200), unresolved citations, and an unwritten draft — then every seed row deleted and local D1 confirmed back to zero. The `cached_tokens` todo was folded into `finishDraft` as STATE directed. **Checkpoint approved without the individual observations being reported**: `/health`, run 1's coverage line, and the panel against real output are approved-but-unobserved, not verified
 
-Next: **Phase 4 (Approval Gate) needs planning.** It carries the two open quality todos (`steer-draft-topics.md`, `context-layer-for-drafts.md`), renders the grounding report — never the bare boolean — beside the accept/edit/reject control, and counts `drafts.grounded` for the light-edit rate (APPR-05). Before the next paid run: open `/health` in a browser
+04-01 (2026-09-15, Phase 4 wave 1): migration 0005 (`d1fe1e2`), decision write and approved-post read in `src/db.ts` (`82734c1`). Applied to local **and remote** D1 (remote needed one retry past API error 7403). **Not deployed** — 04-03 owns the deploy, so remote schema is deliberately ahead of remote code. `npm run check` 0, `npm test` 57/57 (the plan's "60" was stale; 03-07 deleted three tests), `src/db.ts` still imports nothing. Verified by running each helper's exact SQL against two seeded local runs: `changes() = 1` on accept/edit/reject, **`changes() = 0`** for a draft id from another run with its stored text unchanged, `body` intact beside a rewritten `final_body`, the approved read newest-first and excluding the given run, and the APPR-05 query returning `accepted n=2 delta=0 / edited n=1 delta=19 / rejected n=1 delta=NULL`. All seed rows deleted; local D1 confirmed back to zero
+
+Next: **04-02 (the gate itself)** — accept / edit / reject under each draft on `/runs/:id`, the POST route calling `recordDecision`, and a decision cell per draft on `/runs`. It derives 'edited' by comparing the submitted text with `body`, and must keep rendering the grounding **report** beside the control, never the bare `grounded` boolean. Then 04-03 feeds approved posts into the drafting prompt and deploys. Before the next paid run: open `/health` in a browser
 Resume file: None
