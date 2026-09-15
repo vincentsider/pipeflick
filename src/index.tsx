@@ -4,6 +4,7 @@ import { requireAccess, type AppEnv } from "./access";
 import { health } from "./health";
 import { Layout } from "./layout";
 import { settings } from "./settings";
+import { sources } from "./sources";
 
 const app = new Hono<AppEnv>();
 
@@ -20,13 +21,17 @@ app.route("/", health);
 // Speaker name used to filter transcripts down to the executive's own lines.
 app.route("/", settings);
 
+// Stored transcripts and pasted voice samples.
+app.route("/", sources);
+
 app.get("/", (c) =>
   c.html(
     <Layout title="Pipeflick">
       <p>Pipeflick is running.</p>
       <p>Signed in as {c.get("email")}</p>
       <p>
-        <a href="/settings">Settings</a> · <a href="/health">Health</a>
+        <a href="/sources">Sources</a> · <a href="/settings">Settings</a> ·{" "}
+        <a href="/health">Health</a>
       </p>
     </Layout>,
   ),
