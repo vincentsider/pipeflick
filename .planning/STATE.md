@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 3 — Drafting, wave 1 in progress (03-01 done: the prompt/schema module)
+**Current focus:** Phase 3 — Drafting, wave 1 complete (03-01 prompts/schemas, 03-02 run substrate + OpenAI client); 03-03 (runs router) unblocked
 
 ## Current Position
 
 Phase: 3 of 5 (Drafting)
-Plan: 1 of 4 complete (03-01). Waves: [03-01 ✓, 03-02] parallel → [03-03] → [03-04]
-Status: In progress — 03-01 complete (src/prompts.ts, TDD, 34 tests green, tsc clean); 03-02 running in parallel
-Last activity: 2026-09-15 — Completed 03-01-PLAN.md (prompt assembly, schemas, grounding check)
+Plan: 2 of 4 complete (03-01, 03-02). Waves: [03-01 ✓, 03-02 ✓] → [03-03] → [03-04]
+Status: In progress — wave 1 done. Migration 0003 applied local AND remote; job helpers and the OpenAI client type-check and compose; 34 tests green
+Last activity: 2026-09-15 — Completed 03-02-PLAN.md (migration 0003, run/job helpers, src/openai.ts)
 
-Progress: █████░░░░░ 54% (7 of 13 plans)
+Progress: ██████░░░░ 62% (8 of 13 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 8
 - Average duration: ~8 min agent time
 - Total execution time: ~0.8 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 verification checkpoint)
 
@@ -32,6 +32,7 @@ Progress: █████░░░░░ 54% (7 of 13 plans)
 
 **Recent Trend:**
 - Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
+- Wave 1 of Phase 3 ran two plans in parallel with zero file overlap (03-01: prompts/tests; 03-02: migration/db/openai). 03-02 took ~8 min fully autonomous
 - Trend: steady — Phase 2 averaged ~5 min per plan; the only wall-clock cost was the single verification checkpoint in 02-03, which is exactly where a human should be in the loop (first real executive data)
 
 ## Accumulated Context
@@ -80,6 +81,11 @@ Recent decisions affecting current work:
 - 03-01: `excerptTranscript` returns `{ text, linesUsed, linesTotal }` (counts, not a truncated flag) so the run page renders "using the first N of M lines" without a second pass over the body; a line longer than the whole 12000-char budget is truncated inside rather than dropped
 - 03-01: `isGrounded` rejects whitespace-only citations as well as an empty array — `body.includes("")` is always true, so a naive check would score an empty citation as grounded. A false is a warning beside the draft, never a hard failure
 - 03-01: the load-bearing instruction phrases (banned words, "Invent nothing.", "Do not name clients…", the never-mention-a-transcript rule, the em-dash ban) are pinned by test, so a reword cannot silently drop one
+- 03-02: the claim UPDATE guards on `started_at` as well as `status` (`WHERE id = ?2 AND status = ?3 AND started_at IS ?4`, bound to the values just read). Status alone is not exclusive for a stale `running` row — two invocations would both match and both pay. `meta.changes === 1` still decides the winner; no `RETURNING`. Stale window `STALE_JOB_MS = 180_000`
+- 03-02: `resetRunJobs` resets only `status != 'done'` rows (verified by before/after dump), so Retry never re-pays for a finished OpenAI call. `getRunView` omits both `template_json` and `outliers.body` at the query
+- 03-02: `claimNextJob` returns the template as the raw JSON string, so `src/db.ts` imports nothing from `src/prompts.ts`; `finishOutlier`/`finishDraft` take the OpenAI `usage` object structurally and flatten it to `{input_tokens, output_tokens, reasoning_tokens}` before writing `usage_json`
+- 03-02: migration 0003 added `drafts.grounded INTEGER` (not in 03-RESEARCH.md's DDL) because `finishDraft` must store the source-line check; `usage_json` on both job tables makes the cost estimate a measurement after two runs
+- 03-02: `src/openai.ts` classifies by `error.code` — the four billing/spend/usage 429 codes are NOT retryable; `bad_json` and `bad_body` were added so no unhandled `SyntaxError` can 500 the step route and strand a claimed job. `retryable` is computed, NOT persisted: 03-04 must map `error_code` back to retryability (table in 03-02-SUMMARY.md) or persist the flag in migration 0004
 
 ### Pending Todos
 
@@ -98,10 +104,12 @@ Recent decisions affecting current work:
 - Phase 3 (compliance, from research): every OpenAI request must set `store: false` — the Responses API default is 30-day application-state retention. Abuse-monitoring logs are still kept 30 days and need a ZDR agreement to change; state this honestly rather than claiming no retention
 - Phase 3 (compliance, from research): the prompt builder must take primitives only, never a TranscriptRow — Fireflies meeting titles routinely name the counterparty, so passing the row would send a client identifier to OpenAI. Assert it in a test
 - Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
+- Phase 3 (03-02, info): `npm run db:migrate:remote` failed once with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeded on an immediate retry. Transient API-side failure — retry before re-authenticating
+- Phase 3 (03-02, for 03-04): `OpenAIError.retryable` is not stored on the job row. The auto-advance guard needs retryability, so 03-04 must derive it from `error_code` or add a column
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
 ## Session Continuity
 
 Last session: 2026-09-15
-Stopped at: Completed 03-01-PLAN.md — `src/prompts.ts` + `test/prompts.test.ts` (TDD: RED `88ad0b4`, GREEN `01f551d`). 34 tests green, `tsc --noEmit` clean. 03-02 (migration 0003, `src/db.ts`, `src/openai.ts`) ran in parallel; 03-03 (runs router) unblocks once both land
+Stopped at: Wave 1 of Phase 3 complete. 03-01 — `src/prompts.ts` + `test/prompts.test.ts` (TDD: RED `88ad0b4`, GREEN `01f551d`). 03-02 — migration 0003 applied local and remote (`8498a59`), run/job helpers (`39f7974`), `src/openai.ts` (`1f12349`), usage-shape alignment (`2137655`). 34 tests green, `tsc --noEmit` clean, no OpenAI call made yet. Next: 03-03 (runs router), then 03-04 (step route, first live call)
 Resume file: None
