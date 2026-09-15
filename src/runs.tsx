@@ -17,6 +17,7 @@ import {
   setRunStatus,
   STALE_JOB_MS,
   type Decision,
+  type DraftDecision,
   type DraftView,
   type JobStatus,
   type OutlierView,
@@ -190,6 +191,24 @@ const DECISION_LABEL: Record<Decision, string> = {
   rejected: "Rejected",
 };
 
+/**
+ * What was decided about each draft of one run, per position: "1 accepted · 2
+ * edited · 3 —". APPR-06 asks for the decision on each draft rather than a
+ * tally, and a tally would hide the case that matters most — two accepted and
+ * one rejected reads very differently from "2 of 3".
+ *
+ * An undecided draft is a dash, never "pending". Pending is the job vocabulary
+ * from Phase 3 and it means the OpenAI call has not run; a finished post nobody
+ * has looked at yet is a different thing, and borrowing the word would make the
+ * run list say the engine is still working when it has long since stopped. A
+ * draft whose job never finished is a dash for the same reason, and the row's
+ * own progress count already says why.
+ */
+function decisionCell(decisions: DraftDecision[]): string {
+  if (decisions.length === 0) return "—";
+  return decisions.map((draft) => `${draft.position} ${draft.decision ?? "—"}`).join(" · ");
+}
+
 function RunTable({ rows }: { rows: RunSummary[] }) {
   if (rows.length === 0) {
     return (
@@ -207,6 +226,7 @@ function RunTable({ rows }: { rows: RunSummary[] }) {
           <th>Started</th>
           <th>Status</th>
           <th>Progress</th>
+          <th>Decisions</th>
         </tr>
       </thead>
       <tbody>
@@ -218,6 +238,7 @@ function RunTable({ rows }: { rows: RunSummary[] }) {
             <td>{formatDate(row.created_at)}</td>
             <td class={`status status-${row.status}`}>{row.status}</td>
             <td>{`${row.done_jobs} of ${row.total_jobs} done`}</td>
+            <td class="hint">{decisionCell(row.decisions)}</td>
           </tr>
         ))}
       </tbody>
