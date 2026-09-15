@@ -13,7 +13,7 @@ Five phases take Pipeflick from an empty repo to the MVP text loop: a Cloudflare
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Worker, D1, wrangler deploy, Cloudflare Access gate, secrets
-- [ ] **Phase 2: Voice Sources** - Fireflies import keeping only the executive's lines, pasted past posts
+- [x] **Phase 2: Voice Sources** - Fireflies import keeping only the executive's lines, pasted past posts
 - [ ] **Phase 3: Drafting** - Outliers to hidden templates, runs that produce three LinkedIn drafts
 - [ ] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
 - [ ] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
@@ -53,9 +53,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Speaker filter, test-first (vitest; keepSpeakerLines, countBySpeaker, matchSpeaker)
-- [ ] 02-02: Migration 0002 (transcripts, voice_samples), speaker-name setting, paste past posts, sources view
-- [ ] 02-03: Fireflies client, meeting list, preview with speaker override, filtered import, deploy and human check
+- [x] 02-01: Speaker filter, test-first (vitest; keepSpeakerLines, countBySpeaker, matchSpeaker)
+- [x] 02-02: Migration 0002 (transcripts, voice_samples), speaker-name setting, paste past posts, sources view
+- [x] 02-03: Fireflies client, meeting list, preview with speaker override, filtered import, deploy and human check
 
 ### Phase 3: Drafting
 **Goal**: A run turns one transcript plus two or three pasted outliers into three LinkedIn drafts in the executive's voice
@@ -114,7 +114,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-09-14 |
-| 2. Voice Sources | 0/3 | Not started | - |
+| 2. Voice Sources | 3/3 | Complete | 2026-09-15 |
 | 3. Drafting | 0/2 | Not started | - |
 | 4. Approval Gate | 0/2 | Not started | - |
 | 5. Zernio Push | 0/1 | Not started | - |

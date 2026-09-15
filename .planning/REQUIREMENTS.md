@@ -9,12 +9,12 @@ Requirements for the MVP text loop (LinkedIn only, Vincent's own data). Each map
 
 ### Voice Sources
 
-- [ ] **VOICE-01**: App connects to Fireflies with a configured API key and reports whether the connection works
-- [ ] **VOICE-02**: User can list their Fireflies meetings (title, date, duration) and pick one to import
-- [ ] **VOICE-03**: User sets their own speaker name once, and can override which speaker is them on any single import
-- [ ] **VOICE-04**: Importing a transcript keeps only the executive's lines and discards every other speaker before anything is stored
-- [ ] **VOICE-05**: User can paste past LinkedIn posts as plain text and save them as voice samples
-- [ ] **VOICE-06**: User can see the stored transcripts and voice samples
+- [x] **VOICE-01**: App connects to Fireflies with a configured API key and reports whether the connection works
+- [x] **VOICE-02**: User can list their Fireflies meetings (title, date, duration) and pick one to import
+- [x] **VOICE-03**: User sets their own speaker name once, and can override which speaker is them on any single import
+- [x] **VOICE-04**: Importing a transcript keeps only the executive's lines and discards every other speaker before anything is stored
+- [x] **VOICE-05**: User can paste past LinkedIn posts as plain text and save them as voice samples
+- [x] **VOICE-06**: User can see the stored transcripts and voice samples
 
 ### Outliers
 
@@ -109,12 +109,12 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VOICE-01 | Phase 2 | Pending |
-| VOICE-02 | Phase 2 | Pending |
-| VOICE-03 | Phase 2 | Pending |
-| VOICE-04 | Phase 2 | Pending |
-| VOICE-05 | Phase 2 | Pending |
-| VOICE-06 | Phase 2 | Pending |
+| VOICE-01 | Phase 2 | Complete |
+| VOICE-02 | Phase 2 | Complete |
+| VOICE-03 | Phase 2 | Complete |
+| VOICE-04 | Phase 2 | Complete |
+| VOICE-05 | Phase 2 | Complete |
+| VOICE-06 | Phase 2 | Complete |
 | OUTL-01 | Phase 3 | Pending |
 | OUTL-02 | Phase 3 | Pending |
 | DRAFT-01 | Phase 3 | Pending |
@@ -142,4 +142,4 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 ---
 *Requirements defined: 2026-09-14*
-*Last updated: 2026-09-14 after roadmap creation*
+*Last updated: 2026-09-15 after Phase 2 verification*

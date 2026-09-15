@@ -11,7 +11,7 @@ See: .planning/PROJECT.md (updated 2026-09-14)
 
 Phase: 2 of 5 (Voice Sources)
 Plan: 3 of 3 — all Phase 2 plans complete (speaker filter; sources storage and views; Fireflies import)
-Status: Phase 2 complete — human-verified on a real meeting import
+Status: Phase 2 complete and verified 2026-09-15 (5/5 roadmap criteria, 11/11 plan truths, no gaps)
 Last activity: 2026-09-15 — Completed 02-03-PLAN.md (Fireflies client, /fireflies import routes, deployed, checkpoint approved)
 
 Progress: ██████░░░░ 55% (6 of 11 plans)
@@ -53,7 +53,7 @@ Recent decisions affecting current work:
 - 01-01: Worker is live at https://pipeflick.your-subdomain.workers.dev; D1 `pipeflick-db` id `YOUR_D1_DATABASE_ID`, region WEUR
 - 01-02: Access app created in the Cloudflare dashboard (Workers & Pages → pipeflick → Settings → Access), not via `scripts/create-access-app.sh`; no Access-scoped API token exists. Zero Trust team `your-team` (auto-generated), team domain `your-team.cloudflareaccess.com`, app AUD `YOUR_ACCESS_AUD`
 - 01-02: `ctx.access` works with the hostname-based app; jose JWT fallback not needed. Every route sits behind `app.use("*", requireAccess)`; read the user as `c.get("email")`. Local dev identity comes from `access.dev` in wrangler.jsonc
-- 01-03: Zernio replaces Metricool as the scheduler; the secret is ZERNIO_USER_TOKEN (not METRICOOL_USER_TOKEN). Phase 5 must be re-researched and re-planned against the Zernio API before execution. ROADMAP/REQUIREMENTS/PROJECT still say Metricool; the orchestrator updates them at phase completion
+- 01-03: Zernio replaces Metricool as the scheduler; the secret is ZERNIO_USER_TOKEN (not METRICOOL_USER_TOKEN). Phase 5 must be re-researched and re-planned against the Zernio API before execution. ROADMAP/REQUIREMENTS/PROJECT were updated to Zernio at Phase 2 completion (2026-09-15); the phase directory is now `05-zernio-push`. The only remaining Metricool mention is PROJECT.md naming it as a competitor tool, which is correct
 - 01-03: secret names live only in `src/env.ts` SECRET_NAMES; health page and bindings type derive from it. Adding a secret = SECRET_NAMES entry + `.dev.vars.example` line + `npm run secrets:push`
 - 01-03: `/health` returns 500 when the D1 read-back fails so scripted checks catch a broken binding
 - 02-01: test framework is plain vitest 5 (`npm test` = `vitest run`), tests in `test/**/*.test.ts` outside tsconfig `include: ["src"]` so `npm run check` is unaffected; no @cloudflare/vitest-plugin until a Workers-runtime test actually needs one
@@ -72,7 +72,9 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Phase 5: re-research and re-plan against the Zernio API (Metricool is gone); update ROADMAP.md, REQUIREMENTS.md and PROJECT.md Metricool references at Phase 1 completion
+- Phase 3 (low, hardening): narrow the transcript prop on the Fireflies import preview so `sentences` is not passed into a `Meeting`-typed component — see `.planning/todos/pending/narrow-transcript-prop-type.md`
+
+- Phase 5: re-research and re-plan against the Zernio API before planning that phase (the doc rename is done; the API research is not)
 
 ### Blockers/Concerns
 
@@ -82,6 +84,7 @@ Recent decisions affecting current work:
 - Phase 2 (02-03, ongoing): Fireflies is US-hosted. Storing only the executive's own lines is the mitigation, not a resolution, of the Jersey/GDPR transfer question in CLAUDE.md
 - Phase 2 (02-03, minor): `/fireflies` shows one page of 50 meetings with skip paging only — no search or date filter. Fine at pilot scale
 - Phase 3: Worker request time limits may not fit several OpenAI calls in one request; research before planning
+- Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
 ## Session Continuity
