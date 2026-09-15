@@ -4,6 +4,7 @@ import { requireAccess, type AppEnv } from "./access";
 import { fireflies } from "./fireflies-routes";
 import { health } from "./health";
 import { Layout } from "./layout";
+import { runs } from "./runs";
 import { settings } from "./settings";
 import { sources } from "./sources";
 
@@ -28,14 +29,18 @@ app.route("/", sources);
 // Fireflies connection, meeting list and speaker-filtered import.
 app.route("/", fireflies);
 
+// Drafting runs: paste outliers, pick a transcript, watch the steps.
+app.route("/", runs);
+
 app.get("/", (c) =>
   c.html(
     <Layout title="Pipeflick">
       <p>Pipeflick is running.</p>
       <p>Signed in as {c.get("email")}</p>
       <p>
-        <a href="/sources">Sources</a> · <a href="/fireflies">Fireflies</a> ·{" "}
-        <a href="/settings">Settings</a> · <a href="/health">Health</a>
+        <a href="/sources">Sources</a> · <a href="/runs">Runs</a> ·{" "}
+        <a href="/fireflies">Fireflies</a> · <a href="/settings">Settings</a> ·{" "}
+        <a href="/health">Health</a>
       </p>
     </Layout>,
   ),

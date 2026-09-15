@@ -23,7 +23,15 @@ const css = `
   textarea { width: 100%; font: inherit; }
   .samples { list-style: none; padding: 0; }
   .samples li { border-bottom: 1px solid #eee; padding: 0.6rem 0; }
-  .sample-body, .transcript-body p { white-space: pre-wrap; }
+  .sample-body, .transcript-body p, .draft-body { white-space: pre-wrap; }
+  .status { text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.04em; color: #666; }
+  .status-done { color: #0b5; }
+  .status-running { color: #b8860b; }
+  .status-failed { color: #c0392b; }
+  .steps { list-style: none; padding: 0; }
+  .steps li { border-bottom: 1px solid #eee; padding: 0.5rem 0; }
+  .draft { border: 1px solid #eee; padding: 0.6rem 0.8rem; margin: 0.8rem 0; }
+  .draft h4 { margin: 0 0 0.3rem; }
   .speakers { list-style: none; padding: 0; }
   .speakers li { padding: 0.2rem 0; }
 `;
@@ -31,6 +39,7 @@ const css = `
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/sources", label: "Sources" },
+  { href: "/runs", label: "Runs" },
   { href: "/fireflies", label: "Fireflies" },
   { href: "/settings", label: "Settings" },
   { href: "/health", label: "Health" },
