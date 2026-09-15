@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 3 — Drafting, waves 1 and 2 complete (03-01 prompts/schemas, 03-02 run substrate + OpenAI client, 03-03 runs router and status page); 03-04 (step route, first live OpenAI call) unblocked
+**Current focus:** Phase 3 complete — the drafting loop runs end to end on production. The engine is verified; draft quality is not. Phase 4 (Approval Gate) is next, and carries three quality findings with it
 
 ## Current Position
 
-Phase: 3 of 5 (Drafting)
-Plan: 3 of 4 complete (03-01, 03-02, 03-03). Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04]
-Status: In progress — waves 1 and 2 done. A run can be created through the UI and watched; every job state renders. Nothing advances a run yet and no OpenAI call has been made; 34 tests green
-Last activity: 2026-09-15 — Completed 03-03-PLAN.md (src/runs.tsx: run list, new-run form, run creation, status view)
+Phase: 3 of 5 (Drafting) — complete
+Plan: 4 of 4 complete (03-01, 03-02, 03-03, 03-04). Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04 ✓]
+Status: Phase complete, with a split verdict. A run walks itself to three drafts on production for ~$0.10; 6/6 steps done first attempt. The user's answer to "would you publish these with only light edits?" was NO, so Phase 3 has NOT met the 80% target. Three quality findings deferred to Phase 4. 34 tests green
+Last activity: 2026-09-15 — Completed 03-04-PLAN.md (step route, auto-advance, retry; deployed and run on real data)
 
-Progress: ███████░░░ 69% (9 of 13 plans)
+Progress: ███████▋░░ 77% (10 of 13 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: ~8 min agent time
-- Total execution time: ~0.9 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 verification checkpoint)
+- Total execution time: ~1.2 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 verification checkpoints)
 
 **By Phase:**
 
@@ -29,12 +29,14 @@ Progress: ███████░░░ 69% (9 of 13 plans)
 |-------|-------|-------|----------|
 | 1 | 3/3 | ~33 min | ~11 min |
 | 2 | 3/3 | ~15 min agent (~27 min wall) | ~5 min |
+| 3 | 4/4 | ~40 min agent (~2.5h wall) | ~10 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
 - Wave 1 of Phase 3 ran two plans in parallel with zero file overlap (03-01: prompts/tests; 03-02: migration/db/openai). 03-02 took ~8 min fully autonomous
 - 03-03 (~5 min, fully autonomous): the fastest plan yet, because 03-02 had already shaped the reads the page needed — the only work was rendering and validation
-- Trend: steady — Phase 2 averaged ~5 min per plan; the only wall-clock cost was the single verification checkpoint in 02-03, which is exactly where a human should be in the loop (first real executive data)
+- 03-04 (~19 min agent, ~2h wall): the longest agent time of the phase, because the whole paid path was verified for free first — nine page states and every failure mode driven against a deliberately invalid key before a penny was spent
+- Trend: steady — Phase 2 averaged ~5 min per plan; the wall-clock cost is concentrated in the two verification checkpoints (02-03, 03-04), which is exactly where a human should be in the loop (first real executive data, then first real output)
 
 ## Accumulated Context
 
@@ -92,11 +94,25 @@ Recent decisions affecting current work:
 - 03-03: an ungrounded draft gets amber `.notice.warn`, not red `.notice.error` — it is a reviewer's cue, not a failed step, and the draft is always still shown
 - 03-03: a malformed run id is 400 and an unknown run is 404, matching the `src/sources.tsx` transcript-detail precedent. `RUN_ID_PATTERN` guards the UUID shape before D1
 - 03-03: route table is `GET /runs`, `GET /runs/new`, `POST /runs`, `GET /runs/:id`; components are `RunTable`, `NewRunForm`, `StepStatus`, `Failure`, `TemplateSteps`, `DraftSection`, `progress`. 03-04's auto-advance form belongs between the progress paragraph and `<h3>Templates</h3>`
-- 03-02: `src/openai.ts` classifies by `error.code` — the four billing/spend/usage 429 codes are NOT retryable; `bad_json` and `bad_body` were added so no unhandled `SyntaxError` can 500 the step route and strand a claimed job. `retryable` is computed, NOT persisted: 03-04 must map `error_code` back to retryability (table in 03-02-SUMMARY.md) or persist the flag in migration 0004
+- 03-02: `src/openai.ts` classifies by `error.code` — the four billing/spend/usage 429 codes are NOT retryable; `bad_json` and `bad_body` were added so no unhandled `SyntaxError` can 500 the step route and strand a claimed job. `retryable` is computed, NOT persisted: 03-04 resolved this by mapping `error_code` back in `RETRYABLE_ERROR_CODES` (no migration 0004 needed)
+- 03-04: `RETRYABLE_ERROR_CODES` in `src/runs.tsx` is the code-to-retryability map, and it is **default-deny** — an unrecognised code halts the run. Being wrong that way costs one click; being wrong the other way burns the Free plan's daily request budget on a key that will never work
+- 03-04: a failed step is **terminal until Retry**. `failJob` writes `failed` and `claimNextJob` only takes `pending`, so the `retryable && attempts < 2` guard decides whether the run keeps going **at all**, not whether the failed step is re-run. A transient timeout therefore costs one Retry click. Automatic single retry would need a `db.ts` helper to un-fail a row, because `resetRunJobs` zeroes `attempts`
+- 03-04: auto-advance never renders while any job is `running`. Without it two open tabs loop forever (loser gets `claimNextJob` → null → 303 → re-render with the script intact). "Claimable" is defined as exactly what `claimNextJob` will take, never "not done" — a draft whose outlier failed is `pending` forever
+- 03-04: `retryAfterSeconds` travels as a clamped `?retry_after=N` query parameter on the redirect, not a column. It is needed for one page render
+- 03-04: `runs.status` is recomputed from the job rows after every step (`runStatus`/`reconcileRunStatus`), reusing the `getRunView` the drafting branch already needs. `createRun` writes `pending` once and nothing else maintained it
+- 03-04: every `sk-` run is scrubbed out of an error message before it reaches D1 — OpenAI's `invalid_api_key` text quotes the key back masked, and CLAUDE.md forbids rendering any part of a secret
+- 03-04: the Responses-API request shape from 03-02 (flattened `text.format`, `store: false`, `reasoning.effort: "low"`) is **confirmed against the live API**; `gpt-5.6-terra` and `gpt-5.6-sol` both resolve
+- 03-04 (measured, run 1): **$0.097 per run**, about half the research's ~$0.19 estimate. 16,730 input / 1,979 output tokens across 6 calls; **zero** reasoning tokens on all three terra extractions. At two runs a week that is ~$0.80/month — model cost is not a constraint, quality is. The `MODEL_DRAFT` → `gpt-6-astra` lever is nearly free to test
 
 ### Pending Todos
 
-- Still pending (low, hardening): narrow the transcript prop on the Fireflies import preview — see `.planning/todos/pending/narrow-transcript-prop-type.md`. It says to pick this up in any Phase 3 plan touching `fireflies-routes.tsx`; none of 03-01..03-04 does, so it stays pending for Phase 4
+- **Phase 4, high — the three draft-quality findings from 03-04's real run. Do not fix them opportunistically; they interact:**
+  - `.planning/todos/pending/normalise-grounding-match.md` — `isGrounded` is wrong in both directions, and only ever checks the 1-3 reported citations, never the rest of the post
+  - `.planning/todos/pending/steer-draft-topics.md` — no topic input anywhere, and the three drafting calls run blind to each other
+  - `.planning/todos/pending/context-layer-for-drafts.md` — live context retrieval. Recorded only; the user decided 2026-09-15 not to insert it as a phase yet
+- Phase 4 (small, fold into whichever plan next touches `src/db.ts`): `usage_json` does not capture `usage.input_tokens_details.cached_tokens`, so prompt-cache effectiveness is unmeasurable from D1
+- Phase 4 (small): `excerptTranscript` returns `linesUsed`/`linesTotal` and no page renders them. Run 1 silently used ~12,000 of an 18,429-character meeting
+- Still pending (low, hardening): narrow the transcript prop on the Fireflies import preview — see `.planning/todos/pending/narrow-transcript-prop-type.md`. It said to pick this up in any Phase 3 plan touching `fireflies-routes.tsx`; none did, so it stays pending for Phase 4
 
 - Phase 5: re-research and re-plan against the Zernio API before planning that phase (the doc rename is done; the API research is not)
 
@@ -112,8 +128,11 @@ Recent decisions affecting current work:
 - Phase 3 (compliance, from research): the prompt builder must take primitives only, never a TranscriptRow — Fireflies meeting titles routinely name the counterparty, so passing the row would send a client identifier to OpenAI. Assert it in a test
 - Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
 - Phase 3 (03-02, info): `npm run db:migrate:remote` failed once with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeded on an immediate retry. Transient API-side failure — retry before re-authenticating
-- Phase 3 (03-02, for 03-04): `OpenAIError.retryable` is not stored on the job row. The auto-advance guard needs retryability, so 03-04 must derive it from `error_code` or add a column
-- Phase 3 (03-03, for 03-04): the run page's "Nothing has run yet" notice is worded for a world with no engine ("running them is the next piece of the build") and must be rewritten when the step route lands
+- **Phase 3 (03-04, THE open risk of this project): draft quality does not clear the bar.** Run 1 produced three drafts the user would NOT publish with light edits. The 80% target is unmet with exactly one data point behind it. The engine is verified and is not the problem — the three findings are: a grounding check that passes invented material, three drafts colliding on the same topic with no topic input anywhere, and a ceiling of "common sense" because one meeting transcript is the only substance source. **Phase 4 must not be called a success while the drafts stay unpublishable**; the approval gate will faithfully record a low rate, which is the point, but the three todos are what move it
+- Phase 3 (03-04, resolved): `OpenAIError.retryable` is not stored on the job row — resolved by the default-deny `RETRYABLE_ERROR_CODES` map in `src/runs.tsx`; no column added
+- Phase 3 (03-03, resolved by 03-04): the run page's "Nothing has run yet" notice has been rewritten now that an engine exists
+- Phase 3 (03-04, info): prompt caching was **eligible** on drafts 2 and 3 (byte-stable ~4,700-token prefix, well over the 1,024 minimum) but cannot be proven from D1 — `cached_tokens` is not stored. Recorded as eligible, not proven
+- Phase 3 (03-04, info): CPU ms per step was not captured. Indirect evidence only — six steps on the Free plan with the largest payload the input caps allow, no Error 1102 `exceededCpu`
 - Phase 3 (03-03, minor): `/runs` lists every run with no paging, like `/sources`. Fine at pilot scale, but `listRuns` counts jobs per run with subqueries, so a long history would want a limit
 - Phase 3 (03-03, minor): `POST /runs` calls `getTranscript` only to prove the transcript exists, loading the whole body to discard it. Harmless at one executive's scale
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
@@ -121,5 +140,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-09-15
-Stopped at: Waves 1 and 2 of Phase 3 complete. 03-01 — `src/prompts.ts` + `test/prompts.test.ts` (TDD: RED `88ad0b4`, GREEN `01f551d`). 03-02 — migration 0003 applied local and remote (`8498a59`), run/job helpers (`39f7974`), `src/openai.ts` (`1f12349`), usage-shape alignment (`2137655`). 03-03 — runs router and creation (`dcca167`), status view (`333a2b6`). 34 tests green, `tsc --noEmit` clean, local D1 back to zero run rows, still no OpenAI call made. Next: 03-04 (step route, first live call, auto-advance)
+Stopped at: Phase 3 complete. 03-04 — step route (`8433e35`), auto-advance and retry (`feb314f`), voice-sample warning (`75ef4a6`), deployed as version `b3156846-e6bb-4e4a-a14a-ad45b629406b`. The whole paid path was verified for free against a deliberately invalid key before the checkpoint; `.dev.vars` was backed up and restored SHA-identical, and local D1 is back to zero rows. The user then ran it on real data: 6/6 steps done first attempt, $0.097, three drafts they would not publish. Next: Phase 4 (Approval Gate), 2 plans, carrying the three quality todos
 Resume file: None
