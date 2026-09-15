@@ -27,11 +27,11 @@ import { callStructured, OpenAIError } from "./openai";
 import {
   buildDraftingInput,
   buildExtractionInput,
+  checkGrounding,
   DRAFT_INSTRUCTIONS,
   DRAFT_SCHEMA,
   EXTRACT_INSTRUCTIONS,
   excerptTranscript,
-  isGrounded,
   MAX_OUTLIER_CHARS,
   MAX_TRANSCRIPT_CHARS,
   MAX_OUTPUT_DRAFT,
@@ -353,6 +353,147 @@ function TemplateSteps({ outliers }: { outliers: OutlierView[] }) {
   );
 }
 
+/**
+ * The stored `GroundingRecord`, as this page is willing to believe it. Every
+ * field is re-derived from `unknown`: `grounding_json` is D1 text written by a
+ * past version of the Worker, and a draft that fails to parse must cost the
+ * reader one hint, not the whole run page.
+ */
+type StoredGrounding = {
+  citationsResolved: boolean;
+  supported: number;
+  checked: number;
+  skipped: number;
+  unsupported: string[];
+  unsupportedTotal: number;
+  repeated: string[];
+  repeatedTotal: number;
+};
+
+/** Returns null for absent or unreadable JSON — both render as "no verdict". */
+function parseGrounding(json: string | null): StoredGrounding | null {
+  if (!json) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+
+  const record = parsed as Record<string, unknown>;
+  const lines = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+  const count = (value: unknown, fallback: number): number =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
+
+  const unsupported = lines(record.unsupported);
+  const repeated = lines(record.repeated);
+  return {
+    // Missing or malformed defaults to resolved: this panel never invents a
+    // warning it has no evidence for.
+    citationsResolved: record.citationsResolved !== false,
+    supported: count(record.supported, 0),
+    checked: count(record.checked, 0),
+    skipped: count(record.skipped, 0),
+    unsupported,
+    unsupportedTotal: Math.max(count(record.unsupportedTotal, unsupported.length), unsupported.length),
+    repeated,
+    repeatedTotal: Math.max(count(record.repeatedTotal, repeated.length), repeated.length),
+  };
+}
+
+/** The flagged lines themselves, quoted back so they can be found in the post. */
+function FlaggedLines({ label, lines, total }: { label: string; lines: string[]; total: number }) {
+  return (
+    <>
+      <p class="notice warn">{label}</p>
+      <ul class="steps">
+        {lines.map((line) => (
+          <li class="draft-body">{line}</li>
+        ))}
+      </ul>
+      {total > lines.length ? <p class="hint">{`and ${total - lines.length} more.`}</p> : ""}
+    </>
+  );
+}
+
+/**
+ * What the grounding check found, rather than whether it was happy.
+ *
+ * A tick is not the UI here, deliberately. `grounded` is strict — citations
+ * resolve AND nothing unsupported AND nothing repeated — and it is false on all
+ * three of production run 1's drafts, correctly so. A boolean that is false on
+ * every real draft tells the executive exactly as little as the always-true one
+ * it replaced. What earns its place on the page is the report: how much was
+ * traced, which lines were not, and how much was never looked at.
+ *
+ * The last line is not decoration. This check matches WORDS, not meaning: a
+ * short invented sentence said once is counted in `skipped`, not caught. Phase 3
+ * failed its one criterion by letting a narrow check read as a whole-output
+ * guarantee, so the page now says out loud what it did not examine.
+ */
+function GroundingPanel({ json }: { json: string | null }) {
+  const report = parseGrounding(json);
+  if (!report) {
+    // Not a fallback to the stored `grounded` boolean, on purpose: that is the
+    // citation-only proxy 03-07 exists to retire, already known to be wrong in
+    // both directions on exactly these drafts.
+    return <p class="hint">Written before the current grounding check.</p>;
+  }
+
+  const { repeated, repeatedTotal, unsupported, unsupportedTotal, skipped } = report;
+  return (
+    <>
+      {repeated.length > 0 ? (
+        <FlaggedLines
+          label={
+            repeated.length === 1
+              ? "This phrase is repeated and appears nowhere in your transcript or voice samples:"
+              : "These phrases are repeated and appear nowhere in your transcript or voice samples:"
+          }
+          lines={repeated}
+          total={repeatedTotal}
+        />
+      ) : (
+        ""
+      )}
+      {unsupported.length > 0 ? (
+        <FlaggedLines
+          label={
+            unsupported.length === 1
+              ? "This line could not be traced back to your own words:"
+              : "These lines could not be traced back to your own words:"
+          }
+          lines={unsupported}
+          total={unsupportedTotal}
+        />
+      ) : (
+        ""
+      )}
+      {report.citationsResolved ? (
+        ""
+      ) : (
+        <p class="notice warn">
+          The quotes this draft reported building on were not found in your own words.
+        </p>
+      )}
+      {report.checked > 0 ? (
+        <p class="hint">
+          {`Traced ${report.supported} of ${report.checked} substantive lines back to your own words.`}
+        </p>
+      ) : (
+        ""
+      )}
+      <p class="hint">
+        {skipped === 1
+          ? "1 short or connecting line was too generic to check."
+          : `${skipped} short or connecting lines were too generic to check.`}
+      </p>
+    </>
+  );
+}
+
 /** One block per draft: the post itself once it exists, its state until then. */
 function DraftSection({ drafts }: { drafts: DraftView[] }) {
   return (
@@ -367,16 +508,14 @@ function DraftSection({ drafts }: { drafts: DraftView[] }) {
           ) : (
             ""
           )}
-          {draft.grounded === false ? (
-            <p class="notice warn">
-              Could not match this draft's quotes back to the transcript. Read it against your own
-              words before approving.
-            </p>
-          ) : (
-            ""
-          )}
           {draft.body ? (
-            <p class="draft-body">{draft.body}</p>
+            <>
+              <p class="draft-body">{draft.body}</p>
+              {/* Below the post, not above it: the flagged lines are quotes from
+                  a draft the reader has not read yet if they come first, and a
+                  block of them would push the post itself off the screen. */}
+              <GroundingPanel json={draft.grounding_json} />
+            </>
           ) : (
             <p class="hint">
               {draft.status === "failed" ? "No post was written." : "Not written yet."}
@@ -832,6 +971,7 @@ runs.post("/runs/:id/step", async (c) => {
         await failJob(c.env.DB, job, "transcript_missing", TRANSCRIPT_GONE);
       } else {
         const samples = await listVoiceSamples(c.env.DB);
+        const sampleBodies = samples.map((sample) => sample.body);
         const { value, usage } = await callStructured<DraftOutput>(apiKey, {
           model: MODEL_DRAFT,
           instructions: DRAFT_INSTRUCTIONS,
@@ -840,11 +980,7 @@ runs.post("/runs/:id/step", async (c) => {
           // counterparty — the exact Jersey/JFSC leak this phase exists to
           // prevent. `buildDraftingInput` has no row-taking overload and must
           // never gain one; test/prompts.test.ts asserts both halves.
-          input: buildDraftingInput(
-            samples.map((sample) => sample.body),
-            transcript.body,
-            JSON.parse(job.template) as Template,
-          ),
+          input: buildDraftingInput(sampleBodies, transcript.body, JSON.parse(job.template) as Template),
           schemaName: "linkedin_draft",
           schema: DRAFT_SCHEMA,
           maxOutputTokens: MAX_OUTPUT_DRAFT,
@@ -855,9 +991,12 @@ runs.post("/runs/:id/step", async (c) => {
           job.id,
           value.post,
           value.source_lines,
-          // The full body, not the excerpt: a superset, so this check is only
-          // ever more lenient than what the model was actually shown.
-          isGrounded(transcript.body, value.source_lines),
+          // The whole post against the executive's own material. The full
+          // transcript body, not the excerpt: a superset, so the check is only
+          // ever more lenient than what the model was shown. Outlier bodies are
+          // deliberately absent — FORMAT carries shape only, so an outlier's
+          // phrasing in a draft is a defect, not grounding to be credited.
+          checkGrounding(value.post, value.source_lines, [transcript.body, ...sampleBodies]),
           usage,
         );
         outcome = "done";
