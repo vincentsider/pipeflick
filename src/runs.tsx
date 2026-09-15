@@ -12,9 +12,11 @@ import {
   listTranscripts,
   listVoiceSamples,
   OUTLIER_EXCERPT_CHARS,
+  recordDecision,
   resetRunJobs,
   setRunStatus,
   STALE_JOB_MS,
+  type Decision,
   type DraftView,
   type JobStatus,
   type OutlierView,
@@ -60,6 +62,16 @@ const TRANSCRIPT_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
 
 /** Run ids are crypto.randomUUID(); reject junk before it reaches D1. */
 const RUN_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Draft ids are AUTOINCREMENT integers, and arrive from the URL. */
+const DRAFT_ID_PATTERN = /^\d{1,9}$/;
+
+/**
+ * Ceiling on a post submitted through the approval gate. LinkedIn's own limit
+ * is 3000 characters, so this is headroom for an executive who pastes a longer
+ * version to trim later — not room for a novel.
+ */
+const MAX_DECISION_BODY_CHARS = 5000;
 
 /**
  * Recorded against a draft job when delete-on-request has removed the run's
@@ -156,6 +168,27 @@ function formatDateTime(value: string): string {
 function field(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
+
+/**
+ * Textareas come back CRLF-normalised per the HTML spec; D1 holds LF.
+ *
+ * This is load-bearing rather than tidiness. Without it, every single accept
+ * would differ from the stored `body` on line endings alone, every decision
+ * would be recorded as 'edited', and APPR-05's light-edit rate would read 0%
+ * forever — a measurement that is wrong in the flattering direction and would
+ * never look obviously broken. Both sides of the comparison go through here,
+ * and the normalised text is what gets stored.
+ */
+function normalisePost(text: string): string {
+  return text.replace(/\r\n?/g, "\n").trim();
+}
+
+/** What each stored decision is called on the page. */
+const DECISION_LABEL: Record<Decision, string> = {
+  accepted: "Accepted",
+  edited: "Accepted with edits",
+  rejected: "Rejected",
+};
 
 function RunTable({ rows }: { rows: RunSummary[] }) {
   if (rows.length === 0) {
@@ -494,8 +527,95 @@ function GroundingPanel({ json }: { json: string | null }) {
   );
 }
 
+/**
+ * What was decided about this draft, and when.
+ *
+ * Undecided renders nothing at all: the empty state is the form sitting below
+ * it, and a "not decided yet" banner on every draft of every fresh run is noise
+ * on the one page the executive reads most. Amber for a rejection rather than
+ * red, matching 03-03's rule — red belongs to a step that failed, and a
+ * rejection is a judgement working exactly as intended.
+ */
+function DecisionRecord({
+  decision,
+  decidedAt,
+}: {
+  decision: Decision | null;
+  decidedAt: string | null;
+}) {
+  if (!decision) return <></>;
+  return (
+    <p class={decision === "rejected" ? "notice warn" : "notice"}>
+      {DECISION_LABEL[decision]}
+      {decidedAt ? <span class="hint">{` · ${formatDateTime(decidedAt)}`}</span> : ""}
+    </p>
+  );
+}
+
+/**
+ * The gate itself: the post, editable, with Accept and Reject.
+ *
+ * Two submit buttons sharing one name is plain HTML — the browser sends only
+ * the one that was pressed — so this needs no client JavaScript, which is the
+ * rule everywhere in this app.
+ *
+ * There is deliberately no third "Accept with edits" button. The route compares
+ * the submitted text against the stored original and decides for itself, so
+ * APPR-05's light-edit rate is a measurement rather than a survey. Same
+ * instinct as 03-05 calibrating the grounding check against real drafts and
+ * 03-06 storing the coverage counts: record what happened, not what was
+ * reported.
+ *
+ * The box is prefilled from `final_body` when there is one, so reopening a
+ * decided draft shows the text as it now stands rather than reverting to the
+ * model's original — which is still in `body`, untouched, and always will be.
+ */
+function DecisionForm({ runId, draft }: { runId: string; draft: DraftView }) {
+  return (
+    <form method="post" action={`/runs/${runId}/drafts/${draft.id}/decision`}>
+      <p>
+        <label for={`decision-body-${draft.id}`}>Accept this, or edit it first</label>
+      </p>
+      <textarea
+        id={`decision-body-${draft.id}`}
+        name="body"
+        rows={8}
+        maxlength={MAX_DECISION_BODY_CHARS}
+      >
+        {draft.final_body ?? draft.body}
+      </textarea>
+      <p>
+        <button type="submit" name="decision" value="accept">
+          Accept
+        </button>{" "}
+        <button type="submit" name="decision" value="reject">
+          Reject
+        </button>
+      </p>
+      <p class="hint">
+        Changing the text and pressing Accept records an edit. The post above is kept exactly as it
+        was written, which is the only way to tell later how much you had to change.
+      </p>
+    </form>
+  );
+}
+
 /** One block per draft: the post itself once it exists, its state until then. */
-function DraftSection({ drafts }: { drafts: DraftView[] }) {
+function DraftSection({
+  drafts,
+  runId,
+  interactive,
+}: {
+  drafts: DraftView[];
+  runId: string;
+  /**
+   * False while the page is auto-advancing. The status page resubmits itself
+   * every 400ms until the run stops (03-04's engine), and a reload underneath a
+   * half-typed edit would throw the edit away. Passed in rather than re-derived
+   * here, so there is one definition of "the run has stopped".
+   */
+  interactive: boolean;
+}) {
   return (
     <div>
       {drafts.map((draft) => (
@@ -515,6 +635,15 @@ function DraftSection({ drafts }: { drafts: DraftView[] }) {
                   a draft the reader has not read yet if they come first, and a
                   block of them would push the post itself off the screen. */}
               <GroundingPanel json={draft.grounding_json} />
+              {/* The report stays beside the control, never the bare `grounded`
+                  boolean: the approval gate is exactly where a signal known to
+                  be wrong in both directions would do the most damage. */}
+              <DecisionRecord decision={draft.decision} decidedAt={draft.decided_at} />
+              {interactive ? (
+                <DecisionForm runId={runId} draft={draft} />
+              ) : (
+                <p class="hint">Decisions open when the run stops generating.</p>
+              )}
             </>
           ) : (
             <p class="hint">
@@ -644,8 +773,9 @@ function RunControl({
     <div>
       {finished ? (
         <p class="notice">
-          {`All ${total} steps are done; the drafts are below.`} Accepting, editing and rejecting
-          them is Phase 4, so for now this page is read-only.
+          {`All ${total} steps are done; the drafts are below.`} Accept each one as it stands, edit
+          it first and then accept, or reject it. Nothing is published from here — the decision is
+          recorded and the post is yours to take.
         </p>
       ) : (
         ""
@@ -896,7 +1026,10 @@ runs.get("/runs/:id", async (c) => {
       <TemplateSteps outliers={view.outliers} />
 
       <h3>Drafts</h3>
-      <DraftSection drafts={view.drafts} />
+      {/* `!advance.auto` is the whole condition: the controls appear the moment
+          the page stops resubmitting itself, whether the run finished or
+          halted. A halted run's finished drafts are still worth deciding. */}
+      <DraftSection drafts={view.drafts} runId={id} interactive={!advance.auto} />
 
       <p>
         <a href="/runs">Back to runs</a>
@@ -1024,6 +1157,81 @@ runs.post("/runs/:id/step", async (c) => {
  * that are 'done', so on a finished run this changes nothing and re-runs
  * nothing, and on a part-failed run it only re-pays for what never completed.
  */
+/**
+ * The approval gate: accept a draft as it stands, accept an edited version of
+ * it, or reject it. APPR-01 to APPR-04, and the human-in-the-loop step CLAUDE.md
+ * calls mandatory — nothing leaves this app without passing through here.
+ *
+ * Accepted versus edited is MEASURED, never declared. There are two buttons and
+ * three outcomes: the route compares the submitted text with the model's stored
+ * original and picks 'accepted' or 'edited' itself. A self-reported "I only
+ * tweaked it" would turn APPR-05's 80%-with-light-edits target into a survey of
+ * the person it is meant to be measuring.
+ *
+ * Ownership is `recordDecision`'s WHERE clause, not a check here: the UPDATE is
+ * scoped by run as well as draft, and a draft belonging to another run changes
+ * 0 rows, which becomes the 404.
+ */
+runs.post("/runs/:id/drafts/:draftId/decision", async (c) => {
+  const runId = c.req.param("id");
+  if (!RUN_ID_PATTERN.test(runId)) {
+    return c.text("Invalid run id", 400);
+  }
+  const rawDraftId = c.req.param("draftId");
+  if (!DRAFT_ID_PATTERN.test(rawDraftId)) {
+    return c.text("Invalid draft id", 400);
+  }
+  const draftId = Number(rawDraftId);
+
+  const form = await c.req.parseBody();
+
+  // Exactly one of the two buttons, or nothing happens. A missing value is a
+  // 400 rather than a default: inferring "accept" from an absent field would
+  // let a malformed request approve a post.
+  const choice = field(form["decision"]);
+  if (choice !== "accept" && choice !== "reject") {
+    return c.text("Choose Accept or Reject", 400);
+  }
+
+  if (choice === "reject") {
+    // No final text: a rejected draft has none, and `body` keeps the post so
+    // the page can still show what was turned down. A decision is a record,
+    // not a delete.
+    const written = await recordDecision(c.env.DB, runId, draftId, "rejected", null);
+    if (!written) {
+      return c.text("Draft not found", 404);
+    }
+    return c.redirect(`/runs/${runId}`, 303);
+  }
+
+  const submitted = normalisePost(field(form["body"]));
+  if (submitted.length === 0) {
+    return c.text("A post cannot be empty", 400);
+  }
+  if (submitted.length > MAX_DECISION_BODY_CHARS) {
+    return c.text(`A post must be ${MAX_DECISION_BODY_CHARS} characters or fewer`, 400);
+  }
+
+  const view = await getRunView(c.env.DB, runId);
+  const draft = view?.drafts.find((row) => row.id === draftId) ?? null;
+  if (!draft) {
+    return c.text("Draft not found", 404);
+  }
+  if (draft.body === null) {
+    return c.text("That draft has no post yet", 400);
+  }
+
+  // Both sides normalised: the browser submits CRLF and D1 holds LF, so a
+  // straight comparison would call every accept an edit.
+  const decision: Decision = submitted === normalisePost(draft.body) ? "accepted" : "edited";
+  const written = await recordDecision(c.env.DB, runId, draftId, decision, submitted);
+  if (!written) {
+    return c.text("Draft not found", 404);
+  }
+
+  return c.redirect(`/runs/${runId}`, 303);
+});
+
 runs.post("/runs/:id/retry", async (c) => {
   const runId = c.req.param("id");
   if (!RUN_ID_PATTERN.test(runId)) {
