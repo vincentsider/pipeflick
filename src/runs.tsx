@@ -7,6 +7,7 @@ import {
   finishDraft,
   finishOutlier,
   getRunView,
+  getSetting,
   getTranscript,
   listApprovedPosts,
   listRuns,
@@ -14,9 +15,12 @@ import {
   listVoiceSamples,
   OUTLIER_EXCERPT_CHARS,
   recordDecision,
+  recordPush,
+  recordPushFailure,
   resetRunJobs,
   setRunStatus,
   STALE_JOB_MS,
+  ZERNIO_ACCOUNT_ID_KEY,
   type Decision,
   type DraftDecision,
   type DraftView,
@@ -50,6 +54,7 @@ import {
   type DraftOutput,
   type Template,
 } from "./prompts";
+import { createLinkedInDraft, MAX_LINKEDIN_CHARS, ZernioError } from "./zernio";
 
 /**
  * The three form fields a run is started from. The first two are required; a
@@ -75,6 +80,17 @@ const DRAFT_ID_PATTERN = /^\d{1,9}$/;
  * version to trim later — not room for a novel.
  */
 const MAX_DECISION_BODY_CHARS = 5000;
+
+/**
+ * The one Zernio error code worth its own wording. A disconnected account is
+ * not a broken push: the text is fine, the key is fine, and the remedy is two
+ * clicks in two places — reconnect LinkedIn inside Zernio, then choose the
+ * account again on /zernio, because a reconnect changes the account's id.
+ */
+const ACCOUNT_DISCONNECTED = "ACCOUNT_DISCONNECTED";
+
+/** Synthetic code for a push that never got an answer out of Zernio. */
+const PUSH_FAILED = "push_failed";
 
 /**
  * Recorded against a draft job when delete-on-request has removed the run's
@@ -936,6 +952,25 @@ function NotConfigured() {
   );
 }
 
+/**
+ * Same guard for the other key. A push with no token makes no request at all:
+ * the check is before the Zernio call, so nothing reaches the network and
+ * nothing is recorded against the draft.
+ */
+function ZernioNotConfigured() {
+  return (
+    <Layout title="Pipeflick — not configured">
+      <h2>Push to Zernio</h2>
+      <p class="notice error">
+        ZERNIO_USER_TOKEN is not set, so nothing was sent to Zernio and this draft is unchanged.
+      </p>
+      <p>
+        <a href="/health">Check /health</a>
+      </p>
+    </Layout>
+  );
+}
+
 export const runs = new Hono<AppEnv>();
 
 runs.get("/runs", async (c) => {
@@ -1193,12 +1228,6 @@ runs.post("/runs/:id/step", async (c) => {
 });
 
 /**
- * Retry: put every unfinished job back to 'pending' and let the status page
- * pick up where it stopped. Deliberately cheap — `resetRunJobs` skips rows
- * that are 'done', so on a finished run this changes nothing and re-runs
- * nothing, and on a part-failed run it only re-pays for what never completed.
- */
-/**
  * The approval gate: accept a draft as it stands, accept an edited version of
  * it, or reject it. APPR-01 to APPR-04, and the human-in-the-loop step CLAUDE.md
  * calls mandatory — nothing leaves this app without passing through here.
@@ -1273,6 +1302,175 @@ runs.post("/runs/:id/drafts/:draftId/decision", async (c) => {
   return c.redirect(`/runs/${runId}`, 303);
 });
 
+/**
+ * Zernio's own code and a message that is safe to store and to render.
+ *
+ * A `ZernioError` message is Zernio's own text, already scrubbed of anything
+ * key-shaped inside src/zernio.ts, so it is passed through. Anything else is
+ * replaced outright: a network failure carries a URL, a stack frame or a header
+ * name, and none of those belong on a page or in D1 forever.
+ */
+/**
+ * Zernio's messages arrive without a full stop ("This social account has been
+ * disconnected"), and the remedy sentence is appended to them. Without this the
+ * two run together into one ungrammatical line on the page.
+ */
+function endSentence(text: string): string {
+  return /[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`;
+}
+
+function pushFailure(error: unknown): { code: string; message: string } {
+  if (!(error instanceof ZernioError)) {
+    // The honest message, not the comforting one. An aborted request may have
+    // been processed on Zernio's side after this Worker stopped waiting, so
+    // "nothing was saved" would be a guess. Zernio's 24-hour content hash is
+    // what makes pressing the button again safe: a second push of the same text
+    // comes back 409 with the original post id and is recorded as a success.
+    return {
+      code: PUSH_FAILED,
+      message:
+        "The push did not complete, so it is not certain whether Zernio received it. " +
+        "Check your Zernio drafts, then press Push to Zernio again — Zernio refuses a " +
+        "duplicate of the same text within 24 hours, so this cannot create a second draft.",
+    };
+  }
+  if (error.code === ACCOUNT_DISCONNECTED) {
+    return {
+      code: error.code,
+      message:
+        `${endSentence(error.message)} Reconnect LinkedIn in the Zernio dashboard, then choose the account ` +
+        "again on /zernio — a reconnect gives the account a new id, so the saved one stops working.",
+    };
+  }
+  if (error.code === "duplicate") {
+    // A 409 that carried no `existingPostId`. The post is over there, but there
+    // is no receipt to store, and inventing one would be worse than saying so.
+    return {
+      code: error.code,
+      message: `${endSentence(error.message)} Zernio already has this exact text from the last 24 hours but returned no id for it; look for it in your Zernio drafts.`,
+    };
+  }
+  return { code: error.code, message: error.message };
+}
+
+/**
+ * SCHED-02: one approved post becomes one unscheduled LinkedIn draft in Zernio.
+ *
+ * This is the only route in the project that can put the executive's words on
+ * an external service, and it cannot publish them: `createLinkedInDraft` sends
+ * `isDraft: true` and never constructs `publishNow`, `scheduledFor` or
+ * `queuedFromProfile`, and `test/zernio.test.ts` pins that by mutation.
+ * Scheduling and publishing stay manual, inside Zernio, which is what
+ * CLAUDE.md's "no auto-publishing, with or without approval" means in code.
+ *
+ * Every guard below returns before a request is spent, and the two that carry
+ * the product rule rather than mere hygiene are:
+ *   - the decision check. SCHED-02 says an ACCEPTED draft. Letting a rejected
+ *     or undecided one through would make the approval gate decorative, and the
+ *     gate is the trust mechanism this whole pipeline rests on.
+ *   - `final_body`, never `body`. `body` is the model's original output, and on
+ *     a draft decided 'edited' that is text the executive explicitly changed
+ *     and did not approve. Pushing it would publish-adjacent the one version
+ *     they rejected.
+ *
+ * Ownership is `recordPush`/`recordPushFailure`'s WHERE clause, exactly as in
+ * the decision route: the UPDATE is scoped by run as well as draft, and 0 rows
+ * changed becomes the 404.
+ */
+runs.post("/runs/:id/drafts/:draftId/push", async (c) => {
+  const runId = c.req.param("id");
+  if (!RUN_ID_PATTERN.test(runId)) {
+    return c.text("Invalid run id", 400);
+  }
+  const rawDraftId = c.req.param("draftId");
+  if (!DRAFT_ID_PATTERN.test(rawDraftId)) {
+    return c.text("Invalid draft id", 400);
+  }
+  const draftId = Number(rawDraftId);
+
+  const apiKey = c.env.ZERNIO_USER_TOKEN;
+  if (!apiKey) {
+    return c.html(<ZernioNotConfigured />, 500);
+  }
+
+  // Setup, not failure: the key can be perfect and no account chosen yet.
+  const accountId = (await getSetting(c.env.DB, ZERNIO_ACCOUNT_ID_KEY)) ?? "";
+  if (accountId === "") {
+    return c.text("No Zernio account chosen yet. Choose your LinkedIn account on /zernio first.", 400);
+  }
+
+  // The read the run page already does, widened by 05-02, so the push state
+  // arrives with the draft and costs nothing extra.
+  const view = await getRunView(c.env.DB, runId);
+  const draft = view?.drafts.find((row) => row.id === draftId) ?? null;
+  if (!draft) {
+    return c.text("Draft not found", 404);
+  }
+
+  if (draft.decision !== "accepted" && draft.decision !== "edited") {
+    return c.text("Only an accepted draft can go to Zernio. Accept this one first.", 400);
+  }
+
+  const post = draft.final_body ?? "";
+  if (post.trim() === "") {
+    return c.text("That draft has no approved text to push", 400);
+  }
+
+  // The button is hidden once a draft has been pushed, and the route refuses
+  // anyway: a tab left open from before the push would happily submit again.
+  if (draft.zernio_post_id !== null) {
+    return c.text(`This draft is already in Zernio as ${draft.zernio_post_id}`, 400);
+  }
+
+  // MAX_DECISION_BODY_CHARS is 5000 and LinkedIn's ceiling is 3000, so an
+  // accepted draft can legally sit in D1 at a length Zernio will reject.
+  // Checking here spends no request and says which number was missed by how
+  // much; src/zernio.ts deliberately does not truncate anyone's words.
+  if (post.length > MAX_LINKEDIN_CHARS) {
+    return c.text(
+      `LinkedIn allows ${MAX_LINKEDIN_CHARS} characters and this post is ${post.length}. Shorten it and accept it again.`,
+      400,
+    );
+  }
+
+  try {
+    const created = await createLinkedInDraft(apiKey, post, accountId);
+    const written = await recordPush(c.env.DB, runId, draftId, created.id);
+    if (!written) {
+      return c.text("Draft not found", 404);
+    }
+    return c.redirect(`/runs/${runId}`, 303);
+  } catch (error) {
+    // A 409 duplicate is a SUCCESS. Zernio hashes (platform, account, content)
+    // for 24 hours and answers with the id of the post that already exists —
+    // which is precisely the state the user asked for. Recording it as a
+    // failure would be a lie that also throws away the receipt, and it would
+    // leave the page offering a button that can never do anything but 409.
+    if (error instanceof ZernioError && error.code === "duplicate" && error.details?.existingPostId) {
+      const written = await recordPush(c.env.DB, runId, draftId, error.details.existingPostId);
+      if (!written) {
+        return c.text("Draft not found", 404);
+      }
+      return c.redirect(`/runs/${runId}`, 303);
+    }
+
+    // Everything else is recorded against the draft and rendered beside it, not
+    // thrown at an error page the user navigates away from and forgets.
+    const { code, message } = pushFailure(error);
+    const written = await recordPushFailure(c.env.DB, runId, draftId, code, message);
+    if (!written) {
+      return c.text("Draft not found", 404);
+    }
+    return c.redirect(`/runs/${runId}`, 303);
+  }
+});
+
+/**
+ * Retry: put every unfinished job back to 'pending' and let the status page
+ * pick up where it stopped. Deliberately cheap — `resetRunJobs` skips rows
+ * that are 'done', so on a finished run this changes nothing and re-runs
+ * nothing, and on a part-failed run it only re-pays for what never completed.
+ */
 runs.post("/runs/:id/retry", async (c) => {
   const runId = c.req.param("id");
   if (!RUN_ID_PATTERN.test(runId)) {
