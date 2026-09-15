@@ -68,13 +68,18 @@ Plans:
   4. User sees the run's status while it generates, sees a clear error if OpenAI fails, and can retry
 **Research**: Complete (see 03-RESEARCH.md, 2026-09-15)
 **Research topics**: Current OpenAI API and model choice for extraction and drafting; structured output for the template shape; Worker CPU and request time limits versus multi-call generation (waitUntil, queues or a Durable Object if needed); prompt design for template extraction and voice-matched drafting
-**Plans**: 4 plans in 3 waves
+**Plans**: 4 plans in 3 waves, plus 3 gap-closure plans in 2 waves (03-VERIFICATION.md, 2026-09-15)
 
 Plans:
 - [ ] 03-01: Prompt builders, schemas and grounding check (TDD, pure) — wave 1
 - [ ] 03-02: Migration 0003, run/job helpers, OpenAI Responses client — wave 1
 - [ ] 03-03: Run list, new-run form, run creation and status view — wave 2
 - [ ] 03-04: Step engine, auto-advance, retry, deploy and human check — wave 3
+
+Gap closure (criterion 3 failed verification: the grounding check reads citations, not the post):
+- [ ] 03-05: Whole-post grounding check, normalised matching, repeat detection (TDD, pure) — wave 1
+- [ ] 03-06: Migration 0004, transcript coverage stored and shown before and after a run — wave 1
+- [ ] 03-07: Wire the check in, render what it found, retire `isGrounded`, deploy and human check — wave 2
 
 ### Phase 4: Approval Gate
 **Goal**: Every draft gets a recorded human decision, and approved posts shape the next run
