@@ -40,8 +40,13 @@ export type TranscriptRow = {
   imported_at: string;
 };
 
-/** List view: everything except the (potentially large) body. */
-export type TranscriptSummary = Omit<TranscriptRow, "body">;
+/**
+ * List view: everything except the (potentially large) body, plus that body's
+ * length. The body itself still never leaves D1; only its size does, which is
+ * what lets the new-run form warn that a meeting will be cut before the run is
+ * paid for.
+ */
+export type TranscriptSummary = Omit<TranscriptRow, "body"> & { body_chars: number };
 
 export type VoiceSampleRow = {
   id: number;
@@ -88,7 +93,13 @@ export async function upsertTranscript(
 export async function listTranscripts(db: D1Database): Promise<TranscriptSummary[]> {
   const result = await db
     .prepare(
-      "SELECT id, title, meeting_date, duration_minutes, speaker_label, line_count, imported_at " +
+      // SQLite length() counts characters (not bytes) on a TEXT value, and
+      // MAX_TRANSCRIPT_CHARS is compared against JavaScript string.length, so
+      // the two agree for ordinary transcript text. The form uses body_chars
+      // only as a threshold — never as a figure shown to the user, because the
+      // exact statement of what was used is lines-based and comes from the run.
+      "SELECT id, title, meeting_date, duration_minutes, speaker_label, line_count, imported_at, " +
+        "length(body) AS body_chars " +
         "FROM transcripts ORDER BY meeting_date DESC",
     )
     .all<TranscriptSummary>();
@@ -151,8 +162,22 @@ export type RunRow = {
   id: string;
   transcript_id: string;
   status: JobStatus;
+  /**
+   * How much of the transcript actually reached the model, counted at run
+   * creation (migration 0004). NULL for every run created before that
+   * migration — a real state, not a defect: the page must then say nothing
+   * rather than claim a coverage it does not have.
+   */
+  transcript_lines_used: number | null;
+  transcript_lines_total: number | null;
   created_at: string;
   updated_at: string;
+};
+
+/** The two coverage counts, as `excerptTranscript` returns them. */
+export type TranscriptCoverage = {
+  linesUsed: number;
+  linesTotal: number;
 };
 
 /**
@@ -249,11 +274,18 @@ export type Job =
  *
  * One statement per row (6-7 queries) stays well inside D1's Free-plan budget
  * of 50 queries per invocation and its 100-bound-parameter cap per query.
+ *
+ * `coverage` arrives as two primitives, already computed by the caller from
+ * `excerptTranscript`. This module deliberately imports nothing from
+ * src/prompts.ts (03-02): that boundary is what keeps the prompt builders
+ * provably free of row types, so no code path can send a meeting title to
+ * OpenAI. The caller computes; this function stores.
  */
 export async function createRun(
   db: D1Database,
   transcriptId: string,
   outlierBodies: string[],
+  coverage: TranscriptCoverage,
 ): Promise<string> {
   if (outlierBodies.length < 2 || outlierBodies.length > 3) {
     throw new Error(`A run needs 2 or 3 outliers, got ${outlierBodies.length}`);
@@ -264,10 +296,11 @@ export async function createRun(
 
   await db
     .prepare(
-      "INSERT INTO runs (id, transcript_id, status, created_at, updated_at) " +
-        "VALUES (?1, ?2, 'pending', ?3, ?3)",
+      "INSERT INTO runs (id, transcript_id, status, transcript_lines_used, " +
+        "transcript_lines_total, created_at, updated_at) " +
+        "VALUES (?1, ?2, 'pending', ?4, ?5, ?3, ?3)",
     )
-    .bind(id, transcriptId, now)
+    .bind(id, transcriptId, now, coverage.linesUsed, coverage.linesTotal)
     .run();
 
   const outlierIds: number[] = [];
@@ -469,6 +502,8 @@ export async function getRunView(db: D1Database, runId: string): Promise<RunView
   const run = await db
     .prepare(
       "SELECT r.id AS id, r.transcript_id AS transcript_id, r.status AS status, " +
+        "r.transcript_lines_used AS transcript_lines_used, " +
+        "r.transcript_lines_total AS transcript_lines_total, " +
         "r.created_at AS created_at, r.updated_at AS updated_at, t.title AS transcript_title " +
         "FROM runs r LEFT JOIN transcripts t ON t.id = r.transcript_id WHERE r.id = ?1",
     )
