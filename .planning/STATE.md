@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 3 gap closure (03-05, 03-06 ✓, 03-07) before Phase 4. The drafting loop runs end to end on production and the engine is verified; draft quality is not. 03-06 has closed the transcript-coverage gap — the executive can now see how much of their meeting reached the model
+**Current focus:** Phase 3 gap closure (03-05 ✓, 03-06 ✓, 03-07) before Phase 4. The drafting loop runs end to end on production and the engine is verified; draft quality is not. The gap-closure wave is done: the executive can now see how much of their meeting reached the model, and there is a grounding check that reads the whole draft instead of the three lines the model chose to report. 03-07 wires it in and deploys
 
 ## Current Position
 
 Phase: 3 of 5 (Drafting) — gap closure in progress
-Plan: 03-01 ✓, 03-02 ✓, 03-03 ✓, 03-04 ✓, 03-06 ✓. Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04 ✓] → gap closure [03-05, 03-06 ✓] → [03-07]
-Status: The engine was verified and the drafts were not. 03-VERIFICATION.md found two gaps; 03-06 has closed Gap 2 (silent transcript truncation is now visible before and after a run). Gap 1 (grounding) is 03-05 + 03-07. The 80% approval target remains unmet and untested since run 1
-Last activity: 2026-09-15 — Completed 03-06-PLAN.md (migration 0004, transcript coverage stored and rendered)
+Plan: 03-01 ✓, 03-02 ✓, 03-03 ✓, 03-04 ✓, 03-05 ✓, 03-06 ✓. Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04 ✓] → gap closure [03-05 ✓, 03-06 ✓] → [03-07]
+Status: The engine was verified and the drafts were not. 03-VERIFICATION.md found two gaps; both are now closed in code. Gap 2 (silent transcript truncation) is visible before and after a run. Gap 1 (grounding) has its check built and calibrated in 03-05 — 03-07 owns the call site, the storage and the deploy. The 80% approval target remains unmet and untested since run 1, and 03-05's calibration is a second line of evidence for why
+Last activity: 2026-09-15 — Completed 03-05-PLAN.md (whole-post grounding check, calibrated against production run 1)
 
-Progress: ████████▍░ 85% (11 of 13 plans)
+Progress: █████████▏ 92% (12 of 13 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: ~8 min agent time
-- Total execution time: ~1.2 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 verification checkpoints)
+- Total execution time: ~1.4 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 / 03-04 verification checkpoints)
 
 **By Phase:**
 
@@ -30,7 +30,7 @@ Progress: ████████▍░ 85% (11 of 13 plans)
 | 1 | 3/3 | ~33 min | ~11 min |
 | 2 | 3/3 | ~15 min agent (~27 min wall) | ~5 min |
 | 3 | 5/7 | ~49 min agent (~2.6h wall) | ~10 min |
-| 3 (gap closure) | 1/3 | ~9 min agent | ~9 min |
+| 3 (gap closure) | 2/3 | ~21 min agent | ~11 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
@@ -38,6 +38,7 @@ Progress: ████████▍░ 85% (11 of 13 plans)
 - 03-03 (~5 min, fully autonomous): the fastest plan yet, because 03-02 had already shaped the reads the page needed — the only work was rendering and validation
 - 03-04 (~19 min agent, ~2h wall): the longest agent time of the phase, because the whole paid path was verified for free first — nine page states and every failure mode driven against a deliberately invalid key before a penny was spent
 - 03-06 (~9 min, fully autonomous, gap closure wave): a migration, two files and a rendering change; about half the time went on seeding local D1 with a long transcript, a short one and a pre-migration run so all three coverage states could be seen rather than reasoned about
+- 03-05 (~12 min, fully autonomous TDD, ran in parallel with 03-06): RED/GREEN took ~5 min; the other ~7 went on calibrating against the real production drafts — exporting run 1, sweeping thresholds, and checking whether a flagged sentence was actually a fabrication before accepting the verdict. The measurement is what made the SUMMARY honest, and it contradicted the plan
 - Trend: steady — Phase 2 averaged ~5 min per plan; the wall-clock cost is concentrated in the two verification checkpoints (02-03, 03-04), which is exactly where a human should be in the loop (first real executive data, then first real output)
 
 ## Accumulated Context
@@ -112,10 +113,18 @@ Recent decisions affecting current work:
 - 03-06: a cut transcript is amber `.notice.warn`, matching 03-03's ungrounded-draft treatment — the run is fine, the drafts simply had less to work with
 - 03-04 (measured, run 1): **$0.097 per run**, about half the research's ~$0.19 estimate. 16,730 input / 1,979 output tokens across 6 calls; **zero** reasoning tokens on all three terra extractions. At two runs a week that is ~$0.80/month — model cost is not a constraint, quality is. The `MODEL_DRAFT` → `gpt-6-astra` lever is nearly free to test
 
+- 03-05: `checkGrounding(post, sourceLines, sources)` replaces the citation-only proxy and is the DRAFT-03 guard from here on. Three passes: normalised citation resolution, per-sentence attribution (normalised containment, else ≥50% overlap of 4-token shingles), and a 6-token n-gram repeat detector over the whole post. `sources` is `[transcriptBody, ...voiceSampleBodies]` and **outlier bodies must never be passed in** — FORMAT carries shape, so an outlier's phrasing in a draft is a defect to catch, not grounding to credit
+- 03-05: the repeat detector is a **token** n-gram stream, not sentence comparison, and that is load-bearing. The production failure was three sentences of 3, 2 and 2 tokens; only a stream that crosses sentence boundaries catches the repeated 7-token run
+- 03-05: `GroundingReport` reports `skipped` as a first-class field. A short invented sentence said once is below both the claim and the repeat thresholds and is **not caught** — the count is the honest measure of the blind spot, and it is pinned by test rather than described in prose
+- 03-05: the check matches **words, not meaning**. A model compressing a real transcript idea into its own vocabulary reads as unsupported, which is most of what `unsupported` contained on run 1. It is a list a reviewer reads, never a count they act on blindly
+- 03-05: thresholds are `GROUNDING_MIN_CLAIM_TOKENS = 6`, `GROUNDING_SHINGLE_TOKENS = 4`, `GROUNDING_SUPPORT_RATIO = 0.5`, `GROUNDING_REPEAT_TOKENS = 6`. **None moved during calibration, and that is a measurement**: sweeping the ratio 0.5 → 0.25 changed 1-3 of 45 sentences and changed no draft's verdict. Move one only when a run exists where it changes an answer, and say which run in the source comment
+- 03-05: `normaliseForMatch` strips outer punctuation, then up to **two** stacked leading connectives, then outer punctuation again. Order matters — a quote wrapped in quotation marks still needs its "And that" found, and "Right," must not leave its comma behind
+- 03-05: `isGrounded` is left intact and marked superseded so `src/runs.tsx` keeps compiling; 03-07 owns the call site and the deletion. `src/prompts.ts` still has **zero imports**
+
 ### Pending Todos
 
-- **Phase 4, high — the three draft-quality findings from 03-04's real run. Do not fix them opportunistically; they interact:**
-  - `.planning/todos/pending/normalise-grounding-match.md` — `isGrounded` is wrong in both directions, and only ever checks the 1-3 reported citations, never the rest of the post
+- **Phase 4, high — the draft-quality findings from 03-04's real run. Do not fix them opportunistically; they interact:**
+  - ~~`.planning/todos/pending/normalise-grounding-match.md`~~ — **check built by 03-05**, both directions fixed and verified against the real stored drafts. Not closed until 03-07 wires it to `finishDraft` and the run page and deletes `isGrounded`
   - `.planning/todos/pending/steer-draft-topics.md` — no topic input anywhere, and the three drafting calls run blind to each other
   - `.planning/todos/pending/context-layer-for-drafts.md` — live context retrieval. Recorded only; the user decided 2026-09-15 not to insert it as a phase yet
 - Phase 4 (small): `usage_json` does not capture `usage.input_tokens_details.cached_tokens`, so prompt-cache effectiveness is unmeasurable from D1. 03-06 touched `src/db.ts` and deliberately did **not** fold it in — it belongs to the drafting write path (`finishDraft`) that 03-07 is editing in the same wave. Fold it into whichever plan next touches `finishDraft` alone
@@ -137,6 +146,9 @@ Recent decisions affecting current work:
 - Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
 - Phase 3 (03-02, info): `npm run db:migrate:remote` failed once with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeded on an immediate retry. Transient API-side failure — retry before re-authenticating. 03-06's remote migration went through first attempt, so it stays a one-off
 - **Phase 3 (03-04, THE open risk of this project): draft quality does not clear the bar.** Run 1 produced three drafts the user would NOT publish with light edits. The 80% target is unmet with exactly one data point behind it. The engine is verified and is not the problem — the three findings are: a grounding check that passes invented material, three drafts colliding on the same topic with no topic input anywhere, and a ceiling of "common sense" because one meeting transcript is the only substance source. **Phase 4 must not be called a success while the drafts stay unpublishable**; the approval gate will faithfully record a low rate, which is the point, but the three todos are what move it
+- **Phase 3 (03-05, for 03-07 — the one thing to get right): `grounded` is `false` on all three production drafts, and correctly so.** A boolean that is false on 3/3 real drafts is exactly as uninformative to the executive as one that is true on 3/3, which is the fault this gap exists to fix. **The tick must not be the UI.** Render the report — `supported / checked`, the named `unsupported` lines, the `repeated` phrases, and `skipped` so the figure is not mistaken for full coverage. 03-06 already shipped `drafts.grounding_json` (nullable, empty) for exactly this payload, so 03-07 needs no migration
+- Phase 3 (03-05, evidence): the plan expected draft 1 to flip to `grounded: true`. It did not, and that is the right answer — its citations do now resolve, but the post asserts "between 20% and 40%" and `20%` appears **zero times** in the executive's material. Draft 3 also moved from stored `1` to `false`. Reported rather than tuned away, per the plan's own instruction; no threshold in the 0.25-0.5 range makes any draft fully supported
+- Phase 3 (03-05, corroborates the open risk): at 4-token granularity the **median** sentence overlap between run 1's drafts and the executive's own material is **0.00**. The drafts are the model's constructions, not the executive's words rearranged. Same finding as `context-layer-for-drafts.md`, arriving from a different direction. One production run is three data points — re-check once the approval gate has produced more
 - Phase 3 (03-06, info): the deployed bundle does **not** yet include the coverage UI — 03-06 migrated remote D1 but did not deploy. Production is running the pre-0004 code against a post-0004 schema, which is safe (three unread nullable columns) until 03-07's deploy
 - Phase 3 (03-04, resolved): `OpenAIError.retryable` is not stored on the job row — resolved by the default-deny `RETRYABLE_ERROR_CODES` map in `src/runs.tsx`; no column added
 - Phase 3 (03-03, resolved by 03-04): the run page's "Nothing has run yet" notice has been rewritten now that an engine exists
@@ -152,4 +164,7 @@ Last session: 2026-09-15
 Stopped at: Phase 3 complete. 03-04 — step route (`8433e35`), auto-advance and retry (`feb314f`), voice-sample warning (`75ef4a6`), deployed as version `b3156846-e6bb-4e4a-a14a-ad45b629406b`. The whole paid path was verified for free against a deliberately invalid key before the checkpoint; `.dev.vars` was backed up and restored SHA-identical, and local D1 is back to zero rows. The user then ran it on real data: 6/6 steps done first attempt, $0.097, three drafts they would not publish. Next: Phase 4 (Approval Gate), 2 plans, carrying the three quality todos
 
 03-06 (2026-09-15, gap closure wave, ran in parallel with 03-05): migration 0004 (`43246f1`), coverage stored and exposed in `src/db.ts` (`107bac8`), computed and rendered in `src/runs.tsx` (`7e41764`). Migration applied to local **and remote** D1; **not deployed** — 03-07 owns the deploy. Verified against seeded local D1 (148 of 250 lines on a long transcript, "all 40" on a short one, nothing at all on a seeded pre-0004 run), then all seed rows deleted and local D1 confirmed back to zero. `src/prompts.ts` untouched, as 03-05 owns it this wave
+03-05 (2026-09-15, gap closure wave, ran in parallel with 03-06): failing tests first (`5d687b3`), `checkGrounding` (`12d4c2a`), calibration notes and the blind-spot test (`3394741`). TDD, 34 → 60 tests, `tsc` clean, `src/prompts.ts` still zero imports. Calibrated against production run 1 by exporting the three drafts, the 18,429-char transcript and the three voice samples to the scratchpad; all of it deleted afterwards and nothing but verdicts and counts recorded. Both known failures flipped: draft 1's three citations now resolve, and draft 2's invented slogan is the only phrase flagged across the batch. All three drafts come out `grounded: false`, which inspection says is correct. `migrations/`, `src/db.ts` and `src/runs.tsx` untouched, as 03-06 owned them this wave
+
+Next: 03-07 — wire `checkGrounding` into `finishDraft`, store the report in `drafts.grounding_json`, render it on the run page, delete `isGrounded` and its three tests, and deploy (which also ships 03-06's coverage UI to production)
 Resume file: None
