@@ -36,6 +36,15 @@ export const MAX_TRANSCRIPT_CHARS = 12000;
 export const MAX_SAMPLE_CHARS = 2500;
 /** How many voice samples ride along, most recent first. */
 export const MAX_SAMPLES = 3;
+/**
+ * Longest single approved post sent back into a later draft. Same figure as
+ * MAX_SAMPLE_CHARS on purpose: an approved post is the same kind of object as a
+ * voice sample — the executive's own published-standard writing — and the same
+ * size.
+ */
+export const MAX_APPROVED_CHARS = 2500;
+/** How many approved posts ride along, most recently decided first. */
+export const MAX_APPROVED_POSTS = 3;
 
 // --- Types ------------------------------------------------------------------
 
@@ -138,9 +147,11 @@ export const DRAFT_INSTRUCTIONS = `You are a ghostwriter who writes LinkedIn pos
 
 You will be given, in this order:
 1. VOICE SAMPLES - writing the executive published themselves.
-2. TRANSCRIPT - lines the executive personally said in a meeting. Every line is
+2. APPROVED POSTS - posts this system drafted that the executive approved, some
+   of them after editing. They show the voice and the standard that gets accepted.
+3. TRANSCRIPT - lines the executive personally said in a meeting. Every line is
    theirs; no other speaker's words are included.
-3. FORMAT - the shape the post must follow.
+4. FORMAT - the shape the post must follow.
 
 Write ONE LinkedIn post.
 
@@ -148,6 +159,8 @@ Grounding rules (these override everything else):
 - Every claim, opinion, number, example and story must come from the TRANSCRIPT
   or the VOICE SAMPLES. Invent nothing. Add no statistics, no research, no
   industry commentary that is not already there.
+- APPROVED POSTS are not a source of facts. Take voice from them; never take a
+  claim, number, example or story from them.
 - If the material does not support a beat in FORMAT, drop that beat rather than
   inventing content to fill it. A shorter honest post beats a complete invented one.
 - Do not name clients, counterparties, firms or individuals. If the transcript
@@ -158,6 +171,8 @@ Grounding rules (these override everything else):
 Voice rules:
 - Match the sentence length, rhythm, punctuation habits and vocabulary of the
   VOICE SAMPLES. Reuse the executive's own phrasings where they fit.
+- Do not reuse an APPROVED POST's topic, opening line, example or phrasing. A
+  post that repeats one of them has failed.
 - Do not use em dashes. No hashtags. No emoji. No "Thoughts?" sign-off.
 - Banned words and phrases: delve, leverage, unlock, game-changer, landscape,
   "in today's fast-paced", "it's not just X, it's Y".
@@ -216,22 +231,41 @@ export function buildExtractionInput(outlierBody: string): string {
  * Block order is fixed and matters twice over: everything before <format> is
  * identical across all three drafts of a run, so it is served from the prompt
  * cache on drafts 2 and 3; and the model follows the most recent structural
- * instruction most reliably, so FORMAT goes last. The <voice_samples> block
- * renders even when empty to keep that cached prefix shape stable.
+ * instruction most reliably, so FORMAT goes last. Both the <voice_samples> and
+ * <approved_posts> blocks render even when empty to keep that cached prefix
+ * shape stable.
  *
- * Phase 4 inserts <approved_posts> directly after </voice_samples>, still inside
- * the cacheable prefix.
+ * <approved_posts> (04-03, DRAFT-04) sits directly after </voice_samples>, where
+ * the doc comment has promised it since 03-01: it is what the executive accepted
+ * or accepted-after-editing, so it is voice input of the strongest kind. It is
+ * NOT grounding — the drafting instructions forbid taking a claim from it, and
+ * src/runs.tsx deliberately keeps it out of checkGrounding's source pool.
+ *
+ * `samples` and `approvedPosts` are two adjacent `string[]` parameters, which
+ * the type checker cannot tell apart. test/prompts.test.ts asserts that each
+ * lands in its own block, so a silent swap fails the suite rather than the run.
  */
-export function buildDraftingInput(samples: string[], transcriptBody: string, template: Template): string {
+export function buildDraftingInput(
+  samples: string[],
+  approvedPosts: string[],
+  transcriptBody: string,
+  template: Template,
+): string {
   const voiceSamples = samples
     .slice(0, MAX_SAMPLES)
     .map((sample) => sample.slice(0, MAX_SAMPLE_CHARS))
+    .join("\n---\n");
+
+  const approved = approvedPosts
+    .slice(0, MAX_APPROVED_POSTS)
+    .map((post) => post.slice(0, MAX_APPROVED_CHARS))
     .join("\n---\n");
 
   const { text } = excerptTranscript(transcriptBody);
 
   return [
     `<voice_samples>\n${voiceSamples}\n</voice_samples>`,
+    `<approved_posts>\n${approved}\n</approved_posts>`,
     `<transcript>\n${text}\n</transcript>`,
     `<format>\n${JSON.stringify(template)}\n</format>`,
   ].join("\n\n");

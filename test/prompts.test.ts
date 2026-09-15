@@ -11,6 +11,8 @@ import {
   GROUNDING_SHINGLE_TOKENS,
   GROUNDING_SUPPORT_RATIO,
   LEADING_CONNECTIVES,
+  MAX_APPROVED_CHARS,
+  MAX_APPROVED_POSTS,
   MAX_OUTLIER_CHARS,
   MAX_OUTPUT_DRAFT,
   MAX_OUTPUT_EXTRACT,
@@ -64,6 +66,8 @@ describe("constants", () => {
     expect(MAX_TRANSCRIPT_CHARS).toBe(12000);
     expect(MAX_SAMPLE_CHARS).toBe(2500);
     expect(MAX_SAMPLES).toBe(3);
+    expect(MAX_APPROVED_CHARS).toBe(2500);
+    expect(MAX_APPROVED_POSTS).toBe(3);
   });
 });
 
@@ -122,34 +126,54 @@ describe("buildExtractionInput", () => {
 
 describe("buildDraftingInput", () => {
   const samples = ["First published sample.", "Second published sample.", "Third published sample."];
+  const approvedPosts = ["First approved post.", "Second approved post."];
 
   it("orders the blocks so the cacheable prefix comes before the varying format", () => {
-    const input = buildDraftingInput(samples, transcriptBody, template);
+    const input = buildDraftingInput(samples, approvedPosts, transcriptBody, template);
 
     const voice = input.indexOf("<voice_samples>");
+    const approved = input.indexOf("<approved_posts>");
     const transcript = input.indexOf("<transcript>");
     const format = input.indexOf("<format>");
 
     expect(voice).toBeGreaterThanOrEqual(0);
-    expect(voice).toBeLessThan(transcript);
+    expect(voice).toBeLessThan(approved);
+    expect(approved).toBeLessThan(transcript);
     expect(transcript).toBeLessThan(format);
-    expect(input.indexOf("</voice_samples>")).toBeLessThan(transcript);
+    expect(input.indexOf("</voice_samples>")).toBeLessThan(approved);
+    expect(input.indexOf("</approved_posts>")).toBeLessThan(transcript);
     expect(input.indexOf("</transcript>")).toBeLessThan(format);
     expect(input.trimEnd().endsWith("</format>")).toBe(true);
   });
 
-  it("carries the samples, the transcript and the template", () => {
-    const input = buildDraftingInput(samples, transcriptBody, template);
+  it("carries the samples, the approved posts, the transcript and the template", () => {
+    const input = buildDraftingInput(samples, approvedPosts, transcriptBody, template);
 
     for (const sample of samples) expect(input).toContain(sample);
+    for (const post of approvedPosts) expect(input).toContain(post);
     expect(input).toContain(transcriptBody);
     expect(input).toContain(JSON.stringify(template));
     expect(input).toContain("\n---\n");
   });
 
+  it("keeps each of the two string lists in its own block", () => {
+    // `samples` and `approvedPosts` are adjacent string[] parameters, so the type
+    // checker cannot tell them apart. This test is the only thing standing
+    // between a future refactor and a silent swap of the two.
+    const input = buildDraftingInput(["SAMPLE-MARKER"], ["APPROVED-MARKER"], transcriptBody, template);
+
+    const voiceBlock = input.slice(input.indexOf("<voice_samples>"), input.indexOf("</voice_samples>"));
+    const approvedBlock = input.slice(input.indexOf("<approved_posts>"), input.indexOf("</approved_posts>"));
+
+    expect(voiceBlock).toContain("SAMPLE-MARKER");
+    expect(voiceBlock).not.toContain("APPROVED-MARKER");
+    expect(approvedBlock).toContain("APPROVED-MARKER");
+    expect(approvedBlock).not.toContain("SAMPLE-MARKER");
+  });
+
   it("keeps at most MAX_SAMPLES samples, each sliced to MAX_SAMPLE_CHARS", () => {
     const many = ["a".repeat(MAX_SAMPLE_CHARS + 500), "b", "c", "d-dropped", "e-dropped"];
-    const input = buildDraftingInput(many, transcriptBody, template);
+    const input = buildDraftingInput(many, [], transcriptBody, template);
 
     expect(input).not.toContain("d-dropped");
     expect(input).not.toContain("e-dropped");
@@ -160,8 +184,21 @@ describe("buildDraftingInput", () => {
     expect(block.split("\n---\n")).toHaveLength(MAX_SAMPLES);
   });
 
+  it("keeps at most MAX_APPROVED_POSTS posts, each sliced to MAX_APPROVED_CHARS", () => {
+    const many = ["q".repeat(MAX_APPROVED_CHARS + 500), "r", "s", "t-dropped", "u-dropped"];
+    const input = buildDraftingInput([], many, transcriptBody, template);
+
+    expect(input).not.toContain("t-dropped");
+    expect(input).not.toContain("u-dropped");
+    expect(input).toContain("q".repeat(MAX_APPROVED_CHARS));
+    expect(input).not.toContain("q".repeat(MAX_APPROVED_CHARS + 1));
+
+    const block = input.slice(input.indexOf("<approved_posts>"), input.indexOf("</approved_posts>"));
+    expect(block.split("\n---\n")).toHaveLength(MAX_APPROVED_POSTS);
+  });
+
   it("still renders an empty voice_samples block when there are no samples", () => {
-    const input = buildDraftingInput([], transcriptBody, template);
+    const input = buildDraftingInput([], approvedPosts, transcriptBody, template);
 
     expect(input).toContain("<voice_samples>");
     expect(input).toContain("</voice_samples>");
@@ -171,10 +208,25 @@ describe("buildDraftingInput", () => {
     );
   });
 
+  it("still renders an empty approved_posts block, in position, on the first run", () => {
+    // Nothing has been approved yet, and the block shape must not change when
+    // something is: drafts 2 and 3 of a run are cache-eligible only while the
+    // prefix is byte-stable.
+    const input = buildDraftingInput(samples, [], transcriptBody, template);
+
+    expect(input).toContain("<approved_posts>");
+    expect(input).toContain("</approved_posts>");
+    expect(input.indexOf("</voice_samples>")).toBeLessThan(input.indexOf("<approved_posts>"));
+    expect(input.indexOf("</approved_posts>")).toBeLessThan(input.indexOf("<transcript>"));
+    expect(input.slice(input.indexOf("<approved_posts>"), input.indexOf("</approved_posts>")).trim()).toBe(
+      "<approved_posts>",
+    );
+  });
+
   it("excerpts an over-long transcript rather than sending all of it", () => {
     const lines = Array.from({ length: 200 }, (_, i) => `line ${i} ${"y".repeat(90)}`);
     const body = lines.join("\n");
-    const input = buildDraftingInput([], body, template);
+    const input = buildDraftingInput([], [], body, template);
 
     expect(input).toContain(excerptTranscript(body).text);
     expect(input).not.toContain(lines[199]);
@@ -187,7 +239,12 @@ describe("compliance: primitives only", () => {
     const title = "Call with Acme Ltd";
     const speaker = "Vincent Sider";
 
-    const input = buildDraftingInput(["Second published sample."], transcriptBody, template);
+    const input = buildDraftingInput(
+      ["Second published sample."],
+      ["An approved post."],
+      transcriptBody,
+      template,
+    );
 
     expect(input).not.toContain(title);
     expect(input).not.toContain("Acme");
@@ -250,6 +307,27 @@ describe("instructions", () => {
     expect(DRAFT_INSTRUCTIONS).toContain("Do not use em dashes.");
     // 03-05: the cheap half of the repetition fix. The check detects; the prompt prevents.
     expect(DRAFT_INSTRUCTIONS).toContain("Never repeat a sentence or phrase verbatim within the post.");
+  });
+
+  it("tells the model what APPROVED POSTS are, and what may not be taken from them", () => {
+    // 04-03: the block is voice input, never a source of facts. Without the
+    // grounding rule below, one fabrication that got approved could launder
+    // itself into every later draft.
+    expect(DRAFT_INSTRUCTIONS).toContain(
+      "APPROVED POSTS - posts this system drafted that the executive approved",
+    );
+    expect(DRAFT_INSTRUCTIONS).toContain("APPROVED POSTS are not a source of facts.");
+    expect(DRAFT_INSTRUCTIONS).toContain(
+      "Do not reuse an APPROVED POST's topic, opening line, example or phrasing.",
+    );
+    // The blocks are listed in the order buildDraftingInput renders them.
+    expect(DRAFT_INSTRUCTIONS.indexOf("1. VOICE SAMPLES")).toBeLessThan(
+      DRAFT_INSTRUCTIONS.indexOf("2. APPROVED POSTS"),
+    );
+    expect(DRAFT_INSTRUCTIONS.indexOf("2. APPROVED POSTS")).toBeLessThan(
+      DRAFT_INSTRUCTIONS.indexOf("3. TRANSCRIPT"),
+    );
+    expect(DRAFT_INSTRUCTIONS.indexOf("3. TRANSCRIPT")).toBeLessThan(DRAFT_INSTRUCTIONS.indexOf("4. FORMAT"));
   });
 });
 
