@@ -285,6 +285,19 @@ export type OutlierView = {
   error_message: string | null;
 };
 
+/**
+ * What the executive did with a draft (migration 0005). NULL — the absence of
+ * this value — means undecided, which is a real state: every draft written
+ * before that migration, and every draft in a run not reviewed yet.
+ *
+ * 'edited' is DERIVED BY COMPARISON, never self-reported: the route compares the
+ * submitted text with `body` and picks 'accepted' or 'edited' itself (04-02 owns
+ * that). A reviewer who retypes the post verbatim has accepted it, and one who
+ * changes a line has edited it, whichever button they pressed — otherwise
+ * APPR-05's light-edit rate measures what people claim rather than what they did.
+ */
+export type Decision = "accepted" | "edited" | "rejected";
+
 /** Draft progress plus the generated post, which is the point of the page. */
 export type DraftView = {
   id: number;
@@ -304,6 +317,15 @@ export type DraftView = {
   attempts: number;
   error_code: string | null;
   error_message: string | null;
+  /** NULL means undecided; see `Decision`. */
+  decision: Decision | null;
+  /**
+   * The post as it stands after the decision: a copy of `body` on 'accepted',
+   * the executive's text on 'edited', NULL on 'rejected' and while undecided.
+   * The run page prefills its edit box from this, falling back to `body`.
+   */
+  final_body: string | null;
+  decided_at: string | null;
 };
 
 export type RunView = {
@@ -312,6 +334,17 @@ export type RunView = {
   transcript_title: string | null;
   outliers: OutlierView[];
   drafts: DraftView[];
+};
+
+/**
+ * One draft's decision as the run list needs it (APPR-06): enough to show which
+ * runs still have posts waiting, and nothing else. No body, no final text — the
+ * list view never carries prose.
+ */
+export type DraftDecision = {
+  position: number;
+  decision: Decision | null;
+  status: JobStatus;
 };
 
 /** List view: counts, no bodies (the `TranscriptSummary` discipline). */
@@ -324,6 +357,8 @@ export type RunSummary = {
   created_at: string;
   done_jobs: number;
   total_jobs: number;
+  /** One entry per draft of this run, in position order. */
+  decisions: DraftDecision[];
 };
 
 /**
@@ -600,7 +635,8 @@ export async function getRunView(db: D1Database, runId: string): Promise<RunView
   const drafts = await db
     .prepare(
       "SELECT id, position, outlier_id, body, source_lines_json, grounded, grounding_json, " +
-        "status, attempts, error_code, error_message FROM drafts WHERE run_id = ?1 ORDER BY position",
+        "status, attempts, error_code, error_message, decision, final_body, decided_at " +
+        "FROM drafts WHERE run_id = ?1 ORDER BY position",
     )
     .bind(runId)
     .all<Omit<DraftView, "grounded"> & { grounded: number | null }>();
@@ -613,7 +649,17 @@ export async function getRunView(db: D1Database, runId: string): Promise<RunView
   };
 }
 
-/** Run list: titles and progress counts, no draft or transcript bodies. */
+/**
+ * Run list: titles, progress counts and each run's decisions — no draft or
+ * transcript bodies.
+ *
+ * Two queries for the whole page, never N+1. The decisions arrive as one flat
+ * read of every draft row and are grouped in JS, rather than as four more
+ * correlated subqueries per run or a per-run read inside a loop. When this
+ * history grows large enough to need a limit (STATE already records that it
+ * would), the second query takes the same `run_id IN (...)` restriction as the
+ * first, and the shape here does not change.
+ */
 export async function listRuns(db: D1Database): Promise<RunSummary[]> {
   const result = await db
     .prepare(
@@ -626,8 +672,20 @@ export async function listRuns(db: D1Database): Promise<RunSummary[]> {
         "FROM runs r LEFT JOIN transcripts t ON t.id = r.transcript_id " +
         "ORDER BY r.created_at DESC",
     )
-    .all<RunSummary>();
-  return result.results;
+    .all<Omit<RunSummary, "decisions">>();
+
+  const decisions = await db
+    .prepare("SELECT run_id, position, decision, status FROM drafts ORDER BY run_id, position")
+    .all<DraftDecision & { run_id: string }>();
+
+  const byRun = new Map<string, DraftDecision[]>();
+  for (const { run_id, ...draft } of decisions.results) {
+    const list = byRun.get(run_id);
+    if (list) list.push(draft);
+    else byRun.set(run_id, [draft]);
+  }
+
+  return result.results.map((run) => ({ ...run, decisions: byRun.get(run.id) ?? [] }));
 }
 
 /**
@@ -647,4 +705,82 @@ export async function resetRunJobs(db: D1Database, runId: string): Promise<void>
     .prepare("UPDATE runs SET status = 'pending', updated_at = ?1 WHERE id = ?2")
     .bind(now, runId)
     .run();
+}
+
+/* --------------------------------------------------------------------------
+ * Phase 4 approval gate (migration 0005): what the executive decided, and the
+ * approved posts the next run reads back.
+ *
+ * The same two rules as everywhere above: bound parameters only, no `RETURNING`
+ * (D1's support for it is undocumented), and nothing imported from
+ * src/prompts.ts — limits and thresholds arrive as caller-computed primitives,
+ * which is what keeps the prompt builders provably free of row types.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Record a decision against one draft of one run, and report whether it wrote.
+ *
+ * Scoped by `run_id` as well as `id` on purpose: the draft id arrives in a URL
+ * underneath a run, so a draft belonging to a different run must not be
+ * reachable through it. One guarded UPDATE is both the ownership check and the
+ * write — a separate SELECT would be a second round trip and a race.
+ *
+ * `meta.changes === 1` decides the answer, the way `claimNextJob`'s claim does.
+ * False means "no such draft in this run", which the caller turns into a 404.
+ *
+ * `finalBody` is the post as it stands: a copy of `body` on 'accepted', the
+ * executive's text on 'edited', NULL on 'rejected'. `body` itself is never
+ * touched here — it is the model's original output and half of APPR-05.
+ *
+ * Deciding twice is allowed and overwrites: the executive may accept a draft,
+ * reread it and reject it. `decided_at` is the last decision, not the first.
+ */
+export async function recordDecision(
+  db: D1Database,
+  runId: string,
+  draftId: number,
+  decision: Decision,
+  finalBody: string | null,
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare(
+      "UPDATE drafts SET decision = ?1, final_body = ?2, decided_at = ?3, updated_at = ?3 " +
+        "WHERE id = ?4 AND run_id = ?5",
+    )
+    .bind(decision, finalBody, now, draftId, runId)
+    .run();
+  return result.meta.changes === 1;
+}
+
+/**
+ * The most recently approved posts, newest first, as plain strings.
+ *
+ * 'accepted' and 'edited' both count: an edited post is one the executive was
+ * willing to publish, and its final text is a better sample of their voice than
+ * the model's original, which is exactly why `final_body` is read here and
+ * `body` is not.
+ *
+ * `limit` is passed in by the caller, which reads MAX_APPROVED_POSTS from
+ * src/prompts.ts; this module must not import it.
+ *
+ * `excludeRunId` is not defensive padding. It keeps a run's own drafts out of
+ * its own prompt, which stops draft 3 echoing draft 1 after a mid-run approval,
+ * and keeps the cacheable prompt prefix byte-stable across the three drafting
+ * calls of a single run — the prefix would otherwise change underneath them.
+ */
+export async function listApprovedPosts(
+  db: D1Database,
+  limit: number,
+  excludeRunId: string,
+): Promise<string[]> {
+  const result = await db
+    .prepare(
+      "SELECT final_body FROM drafts " +
+        "WHERE decision IN ('accepted', 'edited') AND final_body IS NOT NULL " +
+        "AND run_id != ?1 ORDER BY decided_at DESC LIMIT ?2",
+    )
+    .bind(excludeRunId, limit)
+    .all<{ final_body: string }>();
+  return result.results.map((row) => row.final_body);
 }
