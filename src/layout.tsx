@@ -18,11 +18,14 @@ const css = `
   th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
   th { font-weight: 600; }
   .notice { background: #eefaf1; border-left: 3px solid #0b5; padding: 0.4rem 0.6rem; }
+  .notice.error { background: #fdeded; border-left-color: #c0392b; }
   .hint { color: #666; font-size: 0.9rem; }
   textarea { width: 100%; font: inherit; }
   .samples { list-style: none; padding: 0; }
   .samples li { border-bottom: 1px solid #eee; padding: 0.6rem 0; }
   .sample-body, .transcript-body p { white-space: pre-wrap; }
+  .speakers { list-style: none; padding: 0; }
+  .speakers li { padding: 0.2rem 0; }
 `;
 
 const NAV = [

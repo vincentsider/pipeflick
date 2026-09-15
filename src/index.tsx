@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { csrf } from "hono/csrf";
 import { requireAccess, type AppEnv } from "./access";
+import { fireflies } from "./fireflies-routes";
 import { health } from "./health";
 import { Layout } from "./layout";
 import { settings } from "./settings";
@@ -24,14 +25,17 @@ app.route("/", settings);
 // Stored transcripts and pasted voice samples.
 app.route("/", sources);
 
+// Fireflies connection, meeting list and speaker-filtered import.
+app.route("/", fireflies);
+
 app.get("/", (c) =>
   c.html(
     <Layout title="Pipeflick">
       <p>Pipeflick is running.</p>
       <p>Signed in as {c.get("email")}</p>
       <p>
-        <a href="/sources">Sources</a> · <a href="/settings">Settings</a> ·{" "}
-        <a href="/health">Health</a>
+        <a href="/sources">Sources</a> · <a href="/fireflies">Fireflies</a> ·{" "}
+        <a href="/settings">Settings</a> · <a href="/health">Health</a>
       </p>
     </Layout>,
   ),
