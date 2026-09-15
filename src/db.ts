@@ -155,12 +155,27 @@ export type RunRow = {
   updated_at: string;
 };
 
-/** Token counts only — never the OpenAI response object. */
-export type JobUsage = {
-  input_tokens: number;
-  output_tokens: number;
-  reasoning_tokens: number;
+/**
+ * The OpenAI `usage` object, typed structurally so the step route can pass
+ * what the client returned straight through. Only the three counts below are
+ * ever stored — never the response object, which carries reasoning metadata
+ * and would inflate D1.
+ */
+export type TokenUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  output_tokens_details?: { reasoning_tokens?: number } | null;
 };
+
+/** Flatten to {input_tokens, output_tokens, reasoning_tokens} for `usage_json`. */
+function toUsageJson(usage: TokenUsage | null | undefined): string | null {
+  if (!usage) return null;
+  return JSON.stringify({
+    input_tokens: usage.input_tokens ?? 0,
+    output_tokens: usage.output_tokens ?? 0,
+    reasoning_tokens: usage.output_tokens_details?.reasoning_tokens ?? 0,
+  });
+}
 
 /**
  * Outlier progress as the status page needs it. `template_json` is absent by
@@ -373,14 +388,14 @@ export async function finishOutlier(
   db: D1Database,
   id: number,
   template: unknown,
-  usage: JobUsage | null,
+  usage: TokenUsage | null,
 ): Promise<void> {
   await db
     .prepare(
       "UPDATE outliers SET status = 'done', template_json = ?1, usage_json = ?2, " +
         "error_code = NULL, error_message = NULL, updated_at = ?3 WHERE id = ?4",
     )
-    .bind(JSON.stringify(template), usage ? JSON.stringify(usage) : null, new Date().toISOString(), id)
+    .bind(JSON.stringify(template), toUsageJson(usage), new Date().toISOString(), id)
     .run();
 }
 
@@ -395,7 +410,7 @@ export async function finishDraft(
   post: string,
   sourceLines: string[],
   grounded: boolean,
-  usage: JobUsage | null,
+  usage: TokenUsage | null,
 ): Promise<void> {
   await db
     .prepare(
@@ -406,7 +421,7 @@ export async function finishDraft(
       post,
       JSON.stringify(sourceLines),
       grounded ? 1 : 0,
-      usage ? JSON.stringify(usage) : null,
+      toUsageJson(usage),
       new Date().toISOString(),
       id,
     )
