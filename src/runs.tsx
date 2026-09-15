@@ -21,6 +21,7 @@ import {
   setRunStatus,
   STALE_JOB_MS,
   ZERNIO_ACCOUNT_ID_KEY,
+  ZERNIO_ACCOUNT_LABEL_KEY,
   type Decision,
   type DraftDecision,
   type DraftView,
@@ -639,11 +640,119 @@ function DecisionForm({ runId, draft }: { runId: string; draft: DraftView }) {
   );
 }
 
+/**
+ * The push control. `target` is the chosen account's label, or null when no
+ * account has been chosen yet — in which case this is a link, not a dead
+ * button: the route would only answer 400 and the fix is on another page.
+ *
+ * The button says where the post is going. A push is the one action on this
+ * page that leaves the app, and "which account" must never be a guess.
+ */
+function PushForm({
+  runId,
+  draft,
+  target,
+}: {
+  runId: string;
+  draft: DraftView;
+  target: string | null;
+}) {
+  if (target === null) {
+    return (
+      <p class="hint">
+        <a href="/zernio">Choose your LinkedIn account</a> to push approved drafts to Zernio.
+      </p>
+    );
+  }
+
+  // The route refuses this too; catching it here means the executive reads the
+  // two numbers instead of pressing a button that can only ever fail.
+  const length = (draft.final_body ?? "").length;
+  if (length > MAX_LINKEDIN_CHARS) {
+    return (
+      <p class="notice warn">
+        {`This post is ${length} characters and LinkedIn allows ${MAX_LINKEDIN_CHARS}. Shorten it above and accept it again before pushing.`}
+      </p>
+    );
+  }
+
+  return (
+    <form method="post" action={`/runs/${runId}/drafts/${draft.id}/push`}>
+      <p>
+        <button type="submit">Push to Zernio</button>{" "}
+        <span class="hint">
+          {`Saved as an unscheduled draft on ${target}. Scheduling and publishing stay manual, in Zernio.`}
+        </span>
+      </p>
+    </form>
+  );
+}
+
+/**
+ * Where this post stands with Zernio: landed, refused, or not sent yet.
+ *
+ * The pushed notice says "unscheduled" and "not published" in as many words,
+ * and that is not padding. The whole product rests on the executive being able
+ * to tell at a glance that pressing this button put nothing on LinkedIn; a
+ * badge reading only "Pushed" would leave them guessing, and the guess that
+ * costs something is the wrong one.
+ *
+ * A refused push is amber, not red — 03-03's rule. Red belongs to a step that
+ * failed inside a run; a push Zernio declined is a thing to try again, so the
+ * button comes back with the message.
+ *
+ * An undecided or rejected draft renders nothing at all. A push control there
+ * invites exactly the mistake the route's decision guard exists to stop.
+ */
+function PushState({
+  runId,
+  draft,
+  target,
+}: {
+  runId: string;
+  draft: DraftView;
+  target: string | null;
+}) {
+  if (draft.zernio_post_id !== null) {
+    return (
+      <p class="notice">
+        In Zernio as an unscheduled LinkedIn draft — not scheduled, and not published.{" "}
+        <span class="hint">
+          {`Zernio id ${draft.zernio_post_id}${
+            draft.zernio_pushed_at ? ` · ${formatDateTime(draft.zernio_pushed_at)}` : ""
+          }`}
+        </span>
+      </p>
+    );
+  }
+
+  // A code with no post id is a failed push, which is a real state (05-02) and
+  // must never render as "not pushed yet".
+  if (draft.zernio_error_code !== null) {
+    return (
+      <>
+        <p class="notice warn">
+          {draft.zernio_error_message ?? "Zernio did not accept this draft."}
+          <span class="hint">{` (${draft.zernio_error_code})`}</span>
+        </p>
+        <PushForm runId={runId} draft={draft} target={target} />
+      </>
+    );
+  }
+
+  if (draft.decision !== "accepted" && draft.decision !== "edited") {
+    return <></>;
+  }
+
+  return <PushForm runId={runId} draft={draft} target={target} />;
+}
+
 /** One block per draft: the post itself once it exists, its state until then. */
 function DraftSection({
   drafts,
   runId,
   interactive,
+  pushTarget,
 }: {
   drafts: DraftView[];
   runId: string;
@@ -654,6 +763,12 @@ function DraftSection({
    * here, so there is one definition of "the run has stopped".
    */
   interactive: boolean;
+  /**
+   * The label of the Zernio account a push would go to, or null when none has
+   * been chosen. Read once per page render in the route, never per draft and
+   * never from Zernio — 05-03 stores the label beside the id for this.
+   */
+  pushTarget: string | null;
 }) {
   return (
     <div>
@@ -678,8 +793,16 @@ function DraftSection({
                   boolean: the approval gate is exactly where a signal known to
                   be wrong in both directions would do the most damage. */}
               <DecisionRecord decision={draft.decision} decidedAt={draft.decided_at} />
+              {/* Both the decision and the push are gated on `interactive` for
+                  04-02's reason: this page resubmits itself every 400ms while
+                  the run is generating, and a control that appears mid-reload
+                  is a control that gets mis-clicked. A push is the one click
+                  here that reaches an external service. */}
               {interactive ? (
-                <DecisionForm runId={runId} draft={draft} />
+                <>
+                  <DecisionForm runId={runId} draft={draft} />
+                  <PushState runId={runId} draft={draft} target={pushTarget} />
+                </>
               ) : (
                 <p class="hint">Decisions open when the run stops generating.</p>
               )}
@@ -813,8 +936,9 @@ function RunControl({
       {finished ? (
         <p class="notice">
           {`All ${total} steps are done; the drafts are below.`} Accept each one as it stands, edit
-          it first and then accept, or reject it. Nothing is published from here — the decision is
-          recorded and the post is yours to take.
+          it first and then accept, or reject it. Nothing is published from here — an accepted post
+          can be pushed to Zernio, where it is saved as an unscheduled draft. Scheduling and
+          publishing stay manual, in Zernio.
         </p>
       ) : (
         ""
@@ -1057,6 +1181,14 @@ runs.get("/runs/:id", async (c) => {
     ? Math.min(Number(rawPause), MAX_RETRY_AFTER_SECONDS)
     : 0;
 
+  // The push target, read once for the page rather than once per draft — and
+  // from settings, never from Zernio: 05-03 stores the label beside the id so
+  // this page can name the destination without spending a request per render.
+  // Two reads, and only the id decides whether a push is possible at all.
+  const accountId = (await getSetting(c.env.DB, ZERNIO_ACCOUNT_ID_KEY)) ?? "";
+  const accountLabel = (await getSetting(c.env.DB, ZERNIO_ACCOUNT_LABEL_KEY)) ?? "";
+  const pushTarget = accountId === "" ? null : accountLabel || accountId;
+
   return c.html(
     <Layout title={`Pipeflick run — ${title}`}>
       <h2>Run</h2>
@@ -1087,7 +1219,12 @@ runs.get("/runs/:id", async (c) => {
       {/* `!advance.auto` is the whole condition: the controls appear the moment
           the page stops resubmitting itself, whether the run finished or
           halted. A halted run's finished drafts are still worth deciding. */}
-      <DraftSection drafts={view.drafts} runId={id} interactive={!advance.auto} />
+      <DraftSection
+        drafts={view.drafts}
+        runId={id}
+        interactive={!advance.auto}
+        pushTarget={pushTarget}
+      />
 
       <p>
         <a href="/runs">Back to runs</a>
