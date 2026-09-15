@@ -83,7 +83,9 @@ Recent decisions affecting current work:
 - Phase 2 (02-02, minor): `/sources` loads every transcript summary and every sample body in one page render; fine for one executive at pilot scale, needs DB-level paging/truncation if the archive grows
 - Phase 2 (02-03, ongoing): Fireflies is US-hosted. Storing only the executive's own lines is the mitigation, not a resolution, of the Jersey/GDPR transfer question in CLAUDE.md
 - Phase 2 (02-03, minor): `/fireflies` shows one page of 50 meetings with skip paging only — no search or date filter. Fine at pilot scale
-- Phase 3: Worker request time limits may not fit several OpenAI calls in one request; research before planning
+- Phase 3 (closed by 03-RESEARCH.md, 2026-09-15): the Worker-timing worry was misdirected. Cloudflare states waiting on `fetch()` does not count toward CPU time and HTTP-triggered Workers have no hard duration limit. The real constraints are the Free plan's 10ms CPU per request (spent marshalling payloads, not waiting), `ctx.waitUntil` capping at 30s, and DRAFT-05 needing visible status. Resolved by one OpenAI call per invocation driven by a D1 job table; no queue, Durable Object, Workflow or paid plan needed
+- Phase 3 (compliance, from research): every OpenAI request must set `store: false` — the Responses API default is 30-day application-state retention. Abuse-monitoring logs are still kept 30 days and need a ZDR agreement to change; state this honestly rather than claiming no retention
+- Phase 3 (compliance, from research): the prompt builder must take primitives only, never a TranscriptRow — Fireflies meeting titles routinely name the counterparty, so passing the row would send a client identifier to OpenAI. Assert it in a test
 - Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
