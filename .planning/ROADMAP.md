@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Worker, D1, wrangler deploy, Cloudflare Access gate, secrets
 - [x] **Phase 2: Voice Sources** - Fireflies import keeping only the executive's lines, pasted past posts
 - [x] **Phase 3: Drafting** - Outliers to hidden templates, runs that produce three LinkedIn drafts
-- [ ] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
+- [x] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
 - [ ] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
 
 ## Phase Details
@@ -92,12 +92,12 @@ Gap closure (criterion 3 failed verification: the grounding check reads citation
   4. User sees a list of past runs with the decision on each draft
   5. The next run's drafting prompt includes the most recent approved and edited posts as voice examples
 **Research**: Unlikely (internal CRUD and UI using Phase 1 to 3 patterns)
-**Plans**: 3 plans in 3 waves (planned 2026-09-15; split from 2 so the migration and D1 helpers land before anything renders through them)
+**Plans**: 3 plans in 3 waves (planned 2026-09-15; split from 2 so the migration and D1 helpers land before anything renders through them). Verified 2026-09-15: 16/17 must-haves, 0 failed, status `human_needed` — four items await live confirmation (04-VERIFICATION.md)
 
 Plans:
-- [ ] 04-01: Migration 0005, decision storage, approved-post read, decisions in the run views — wave 1
-- [ ] 04-02: Approval view (accept, inline edit, reject) and decisions in the run list — wave 2
-- [ ] 04-03: Approved posts into the drafting prompt (DRAFT-04), deploy and human check — wave 3
+- [x] 04-01: Migration 0005, decision storage, approved-post read, decisions in the run views — wave 1
+- [x] 04-02: Approval view (accept, inline edit, reject) and decisions in the run list — wave 2
+- [x] 04-03: Approved posts into the drafting prompt (DRAFT-04), deploy and human check — wave 3
 
 ### Phase 5: Zernio Push
 **Goal**: An accepted draft reaches Zernio as an unscheduled LinkedIn post with one click
@@ -124,5 +124,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation | 3/3 | Complete | 2026-09-14 |
 | 2. Voice Sources | 3/3 | Complete | 2026-09-15 |
 | 3. Drafting | 7/7 | Complete | 2026-09-15 |
-| 4. Approval Gate | 0/3 | Planned | - |
+| 4. Approval Gate | 3/3 | Complete | 2026-09-15 |
 | 5. Zernio Push | 0/1 | Not started | - |
