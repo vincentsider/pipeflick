@@ -26,7 +26,6 @@ import {
   buildExtractionInput,
   checkGrounding,
   excerptTranscript,
-  isGrounded,
   normaliseForMatch,
   splitSentences,
   type Template,
@@ -251,26 +250,6 @@ describe("instructions", () => {
     expect(DRAFT_INSTRUCTIONS).toContain("Do not use em dashes.");
     // 03-05: the cheap half of the repetition fix. The check detects; the prompt prevents.
     expect(DRAFT_INSTRUCTIONS).toContain("Never repeat a sentence or phrase verbatim within the post.");
-  });
-});
-
-describe("isGrounded", () => {
-  it("is true when every cited line is verbatim in the transcript", () => {
-    expect(isGrounded(transcriptBody, ["Jersey quietly became the default domicile."])).toBe(true);
-    expect(isGrounded(transcriptBody, ["Fund administration margin", "default domicile"])).toBe(true);
-  });
-
-  it("is false when any cited line was invented", () => {
-    expect(isGrounded(transcriptBody, ["Jersey quietly became the default domicile.", "We grew 40% last year."])).toBe(
-      false,
-    );
-    expect(isGrounded(transcriptBody, ["We grew 40% last year."])).toBe(false);
-  });
-
-  it("is false for no citations at all", () => {
-    expect(isGrounded(transcriptBody, [])).toBe(false);
-    expect(isGrounded(transcriptBody, ["  "])).toBe(false);
-    expect(isGrounded("", ["anything"])).toBe(false);
   });
 });
 

@@ -54,6 +54,8 @@ export type Usage = {
   input_tokens?: number;
   output_tokens?: number;
   output_tokens_details?: { reasoning_tokens?: number } | null;
+  /** Of `input_tokens`, how many were served from the prompt cache. */
+  input_tokens_details?: { cached_tokens?: number } | null;
 };
 
 type ResponseBody = {

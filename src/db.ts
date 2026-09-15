@@ -158,6 +158,17 @@ export const DRAFTS_PER_RUN = 3;
 /** Error text is rendered on the status page; cap it so D1 stays small. */
 const MAX_ERROR_MESSAGE = 500;
 
+/**
+ * How many flagged lines of each kind survive into `grounding_json`. A reviewer
+ * reads five lines and acts on them; fifty is a wall of text they skip, and it
+ * is draft prose sitting in D1 for no one. The pre-cap counts are stored
+ * alongside, so the page can still say how many were dropped.
+ */
+export const MAX_GROUNDING_LINES = 5;
+
+/** Each kept line is sliced to this, the way error text is capped. */
+export const MAX_GROUNDING_LINE_CHARS = 300;
+
 export type RunRow = {
   id: string;
   transcript_id: string;
@@ -190,15 +201,66 @@ export type TokenUsage = {
   input_tokens?: number;
   output_tokens?: number;
   output_tokens_details?: { reasoning_tokens?: number } | null;
+  /**
+   * Prompt-cache hits. 03-04 found drafts 2 and 3 *eligible* for caching (a
+   * byte-stable ~4,700-token prefix, well over the 1,024 minimum) but could not
+   * prove a hit, because this count was parsed and thrown away. Stored now so
+   * the phase cost estimate can be checked against what was actually billed.
+   */
+  input_tokens_details?: { cached_tokens?: number } | null;
 };
 
-/** Flatten to {input_tokens, output_tokens, reasoning_tokens} for `usage_json`. */
+/**
+ * Flatten to {input_tokens, cached_tokens, output_tokens, reasoning_tokens} for
+ * `usage_json`. Rows written before 03-07 have no `cached_tokens` key; a reader
+ * must treat its absence as unknown, not as zero cache hits.
+ */
 function toUsageJson(usage: TokenUsage | null | undefined): string | null {
   if (!usage) return null;
   return JSON.stringify({
     input_tokens: usage.input_tokens ?? 0,
+    cached_tokens: usage.input_tokens_details?.cached_tokens ?? 0,
     output_tokens: usage.output_tokens ?? 0,
     reasoning_tokens: usage.output_tokens_details?.reasoning_tokens ?? 0,
+  });
+}
+
+/**
+ * What the grounding check found, typed structurally the way `TokenUsage` is so
+ * the step route can pass `checkGrounding`'s report straight through. This
+ * module imports nothing from src/prompts.ts (03-02) — that boundary is what
+ * keeps the prompt builders provably free of row types, so no code path can
+ * send a meeting title to OpenAI. Shape is duplicated here deliberately; an
+ * import would be the cheaper line and the wrong one.
+ */
+export type GroundingRecord = {
+  grounded: boolean;
+  citationsResolved: boolean;
+  supported: number;
+  checked: number;
+  skipped: number;
+  unsupported: string[];
+  repeated: string[];
+};
+
+/**
+ * Cap the report for storage: at most MAX_GROUNDING_LINES entries of each list,
+ * each sliced to MAX_GROUNDING_LINE_CHARS, with the pre-cap counts kept so the
+ * page can say "and N more" rather than silently showing five of twelve.
+ */
+function toGroundingJson(grounding: GroundingRecord): string {
+  const cap = (lines: string[]) =>
+    lines.slice(0, MAX_GROUNDING_LINES).map((line) => line.slice(0, MAX_GROUNDING_LINE_CHARS));
+  return JSON.stringify({
+    grounded: grounding.grounded,
+    citationsResolved: grounding.citationsResolved,
+    supported: grounding.supported,
+    checked: grounding.checked,
+    skipped: grounding.skipped,
+    unsupported: cap(grounding.unsupported),
+    unsupportedTotal: grounding.unsupported.length,
+    repeated: cap(grounding.repeated),
+    repeatedTotal: grounding.repeated.length,
   });
 }
 
@@ -231,6 +293,13 @@ export type DraftView = {
   body: string | null;
   source_lines_json: string | null;
   grounded: boolean | null;
+  /**
+   * The serialised `GroundingRecord`, or NULL for a draft written before 03-07.
+   * NULL is a real state: those drafts carry a `grounded` value from the old
+   * citation-only check, which production run 1 proved wrong in both
+   * directions, so the page must show nothing rather than reprint it.
+   */
+  grounding_json: string | null;
   status: JobStatus;
   attempts: number;
   error_code: string | null;
@@ -441,26 +510,34 @@ export async function finishOutlier(
 
 /**
  * Store the generated post, the lines the model claimed to ground it on, and
- * whether those lines were actually found in the transcript. Parsed values
- * only — never the OpenAI response object.
+ * what the grounding check made of the whole draft. Parsed values only — never
+ * the OpenAI response object.
+ *
+ * Two columns, on purpose. `grounded` stays a plain 1/0 because Phase 4 computes
+ * the light-edit rate off it and APPR-05 depends on it being an integer that
+ * SQL can count. `grounding_json` carries the counts and the flagged lines,
+ * which is what a person actually needs: a boolean that is false on every real
+ * draft tells the reviewer no more than one that is true on every real draft.
  */
 export async function finishDraft(
   db: D1Database,
   id: number,
   post: string,
   sourceLines: string[],
-  grounded: boolean,
+  grounding: GroundingRecord,
   usage: TokenUsage | null,
 ): Promise<void> {
   await db
     .prepare(
       "UPDATE drafts SET status = 'done', body = ?1, source_lines_json = ?2, grounded = ?3, " +
-        "usage_json = ?4, error_code = NULL, error_message = NULL, updated_at = ?5 WHERE id = ?6",
+        "grounding_json = ?4, usage_json = ?5, error_code = NULL, error_message = NULL, " +
+        "updated_at = ?6 WHERE id = ?7",
     )
     .bind(
       post,
       JSON.stringify(sourceLines),
-      grounded ? 1 : 0,
+      grounding.grounded ? 1 : 0,
+      toGroundingJson(grounding),
       toUsageJson(usage),
       new Date().toISOString(),
       id,
@@ -522,8 +599,8 @@ export async function getRunView(db: D1Database, runId: string): Promise<RunView
 
   const drafts = await db
     .prepare(
-      "SELECT id, position, outlier_id, body, source_lines_json, grounded, status, attempts, " +
-        "error_code, error_message FROM drafts WHERE run_id = ?1 ORDER BY position",
+      "SELECT id, position, outlier_id, body, source_lines_json, grounded, grounding_json, " +
+        "status, attempts, error_code, error_message FROM drafts WHERE run_id = ?1 ORDER BY position",
     )
     .bind(runId)
     .all<Omit<DraftView, "grounded"> & { grounded: number | null }>();

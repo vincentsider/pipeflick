@@ -237,22 +237,6 @@ export function buildDraftingInput(samples: string[], transcriptBody: string, te
   ].join("\n\n");
 }
 
-/**
- * SUPERSEDED by `checkGrounding` below, and left here only because `src/runs.tsx`
- * still calls it; 03-07 rewires the call site and deletes this. Do not wire it
- * into anything new — production run 1 proved it wrong in both directions.
- *
- * The mechanical half of DRAFT-03: is every line the model claimed to build on
- * actually in the material it was given? Pass the same text that was sent (the
- * excerpt), or the full body, which is a superset and so only ever more lenient.
- * A draft citing nothing is not grounded. A miss is a warning next to the draft,
- * not a failure: strict schemas constrain shape, not verbatim accuracy.
- */
-export function isGrounded(transcriptBody: string, sourceLines: string[]): boolean {
-  if (sourceLines.length === 0) return false;
-  return sourceLines.every((line) => line.trim() !== "" && transcriptBody.includes(line));
-}
-
 // --- Grounding --------------------------------------------------------------
 // The mechanical half of DRAFT-03, rewritten after production run 1 proved the
 // citation-only check wrong in BOTH directions on a single batch of three drafts:
