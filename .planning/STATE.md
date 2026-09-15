@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-09-14)
 Phase: 3 of 5 (Drafting) — **complete**
 Plan: 03-01 ✓, 03-02 ✓, 03-03 ✓, 03-04 ✓, 03-05 ✓, 03-06 ✓, 03-07 ✓. Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04 ✓] → gap closure [03-05 ✓, 03-06 ✓] → [03-07 ✓]
 Status: Both gaps from 03-VERIFICATION.md are closed in code and live on production (version `f17cf55d`). Gap 2 (silent transcript truncation) is visible before and after a run. Gap 1 (grounding) reads the whole post, stores its report and renders it beside each draft; `isGrounded` is deleted. **The 80% approval target remains unmet and untested since run 1** — the wave fixed the instrument, not the output, and the two findings that actually move draft quality (topic collision, thin substance base) are open Phase 4 todos
-Last activity: 2026-09-15 — Completed 03-07-PLAN.md (grounding wired in, rendered and deployed; Phase 3 done)
+Last activity: 2026-09-15 — Completed 03-07-PLAN.md (grounding wired in, rendered and deployed), then re-verified the phase. 03-VERIFICATION.md status is `human_needed`, not `passed`: 4/4 truths verified in code by adversarial probe against the real `checkGrounding` (not by trusting the green tests, which is how the original gap survived), with three items awaiting live confirmation
 
 Progress: ██████████ 100% (13 of 13 plans created; Phases 4 and 5 are not yet planned)
 
@@ -171,6 +171,13 @@ Recent decisions affecting current work:
 - Phase 3 (03-03, minor): `/runs` lists every run with no paging, like `/sources`. Fine at pilot scale, but `listRuns` counts jobs per run with subqueries, so a long history would want a limit
 - Phase 3 (03-03, resolved by 03-06): `POST /runs` loaded the whole transcript body only to prove the row existed and then discarded it. That read now pays for the coverage counts stored on the run
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
+
+- **Phase 3 (re-verification, 2026-09-15): status is `human_needed`, not `passed`.** Nothing is missing, stubbed or unwired, and both original gaps are independently re-proved closed — the decisive probe (three genuine citations wrapped around a fully invented body) used to pass and now returns `grounded: false` with all three fabricated sentences quoted back. But three things have never been observed live, and one ~$0.10 run closes all three at once:
+  1. The grounding panel against a real draft — every render state was seeded with hand-written JSON
+  2. The write-path round trip. `toGroundingJson` (writer, `src/db.ts`) and `parseGrounding` (reader, `src/runs.tsx`) are both module-private, there is no test file for `src/db.ts`, and seeding validates only the reader. All nine field names and types were confirmed to agree **by reading both sides**, so the failure that would matter (a renamed key rendering every draft as "no report") is ruled out by inspection, not by execution
+  3. `/health` green on version `f17cf55d` — unreachable from an agent, since Access 302s an unauthenticated request before the Worker runs (`service_token_status: false`, `auth_status: NONE`). The gate is correctly fail-closed; that is also why the live run page cannot be checked from here
+- Phase 3 (verification, judgement recorded): criterion 3 is about **compliance, not draft quality**. The code now confines drafts to the executive's own material and reports honestly on how well it managed, so DRAFT-03 moved PARTIAL → SATISFIED. Run 1's unpublishable drafts are a Phase 4 problem and stay open. Conflating the two would either fail Phase 3 for something it never promised, or let the quality problem be marked closed because a grounding check exists
+- Phase 3 (documented blind spot, by design): a short invented sentence said once lands in `skipped`, not `unsupported` — the check matches words, not meaning. The panel prints "N short or connecting lines were too generic to check" in **every** state, so a clean result cannot be read as a purity guarantee
 
 ## Session Continuity
 

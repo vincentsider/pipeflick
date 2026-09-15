@@ -18,16 +18,16 @@ Requirements for the MVP text loop (LinkedIn only, Vincent's own data). Each map
 
 ### Outliers
 
-- [ ] **OUTL-01**: User can paste two or three outlier LinkedIn posts as plain text for a run
-- [ ] **OUTL-02**: System extracts a template (hook, structure, angle) from each outlier with OpenAI and stores it, not shown in the UI
+- [x] **OUTL-01**: User can paste two or three outlier LinkedIn posts as plain text for a run
+- [x] **OUTL-02**: System extracts a template (hook, structure, angle) from each outlier with OpenAI and stores it, not shown in the UI
 
 ### Drafting
 
-- [ ] **DRAFT-01**: User can start a run by choosing one imported transcript and the run's pasted outliers
-- [ ] **DRAFT-02**: A run produces exactly three LinkedIn drafts, each filled from one of the run's templates
-- [ ] **DRAFT-03**: Drafts draw only on the executive's own transcript lines and voice samples, never other speakers
+- [x] **DRAFT-01**: User can start a run by choosing one imported transcript and the run's pasted outliers
+- [x] **DRAFT-02**: A run produces exactly three LinkedIn drafts, each filled from one of the run's templates
+- [x] **DRAFT-03**: Drafts draw only on the executive's own transcript lines and voice samples, never other speakers
 - [ ] **DRAFT-04**: The drafting prompt includes the most recent approved and edited posts as voice examples
-- [ ] **DRAFT-05**: User sees run status and a clear error if generation fails, and can retry the run
+- [x] **DRAFT-05**: User sees run status and a clear error if generation fails, and can retry the run
 
 ### Approval
 
@@ -115,13 +115,13 @@ Which phases cover which requirements. Updated by create-roadmap.
 | VOICE-04 | Phase 2 | Complete |
 | VOICE-05 | Phase 2 | Complete |
 | VOICE-06 | Phase 2 | Complete |
-| OUTL-01 | Phase 3 | Pending |
-| OUTL-02 | Phase 3 | Pending |
-| DRAFT-01 | Phase 3 | Pending |
-| DRAFT-02 | Phase 3 | Pending |
-| DRAFT-03 | Phase 3 | Pending |
+| OUTL-01 | Phase 3 | Complete |
+| OUTL-02 | Phase 3 | Complete |
+| DRAFT-01 | Phase 3 | Complete |
+| DRAFT-02 | Phase 3 | Complete |
+| DRAFT-03 | Phase 3 | Complete |
 | DRAFT-04 | Phase 4 | Pending |
-| DRAFT-05 | Phase 3 | Pending |
+| DRAFT-05 | Phase 3 | Complete |
 | APPR-01 | Phase 4 | Pending |
 | APPR-02 | Phase 4 | Pending |
 | APPR-03 | Phase 4 | Pending |

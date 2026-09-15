@@ -1,169 +1,181 @@
 ---
 phase: 03-drafting
-verified: 2026-09-15T12:15:00Z
-status: gaps_found
-score: 4/5 must-haves verified
-gaps:
-  - truth: "Drafts contain only material from the executive's transcript lines and voice samples"
-    status: failed
-    reason: >-
-      The DRAFT-03 guard checks the wrong surface. `isGrounded` validates only the 1-3
-      `source_lines` the model chooses to report and never inspects the rest of the post, so a
-      model can cite three genuine lines and write anything it likes around them. Confirmed on
-      production D1, not inferred: draft 2 is stored `grounded = 1` while containing the line
-      "Collect the prompts. Build authority. Become visible." twice, and that phrase appears
-      zero times in the transcript. The same check also fails in the opposite direction —
-      draft 1 is stored `grounded = 0` although its quotes really are in the transcript, the
-      model having trimmed a leading filler word and recapitalised. Reproduced locally against
-      the real function, both directions.
-    artifacts:
-      - path: "src/prompts.ts"
-        issue: >-
-          `isGrounded` (line 246) is `sourceLines.every(line => transcriptBody.includes(line))`.
-          Exact substring, citations only. No whole-post coverage, no normalisation.
-      - path: "src/runs.tsx"
-        issue: >-
-          Line 817 passes only `value.source_lines` to the check, so the post body reaching
-          `finishDraft` on line 810 is stored unverified.
-      - path: "src/db.ts"
-        issue: >-
-          `finishDraft` persists `grounded` as authoritative (migration 0003: "1 when every
-          source line is in the transcript"), and `DraftSection` warns only on `grounded === false`,
-          so a false positive is silent to the user.
-    missing:
-      - "Whole-post grounding, not citation-only: attribute each claim-bearing sentence back to transcript or voice samples"
-      - "At minimum a verbatim-repetition detector, which would have caught draft 2 on its own"
-      - "Normalised matching (collapse whitespace, lowercase, strip leading connectives and trailing punctuation) to kill the false negative on draft 1"
-    already_tracked: ".planning/todos/pending/normalise-grounding-match.md — deferred to Phase 4, both directions documented"
-  - truth: "The user can see what of their transcript was actually used"
-    status: partial
-    reason: >-
-      `MAX_TRANSCRIPT_CHARS` (12,000) silently truncated an 18,429-character transcript on the
-      first production run — roughly a third of the executive's own words dropped with no
-      indication. `excerptTranscript` computes `linesUsed` and `linesTotal` precisely so the UI
-      can say "using the first N of M lines", and 03-01-PLAN names that reporting as a must-have
-      truth, but the values are consumed nowhere outside `test/prompts.test.ts`. Does not breach
-      criterion 3's "only" clause (truncation narrows the pool, it cannot add foreign material)
-      and does not break criterion 4's step status, error or retry. It does shrink the substance
-      the model has to work with while telling the user nothing.
-    artifacts:
-      - path: "src/prompts.ts"
-        issue: "`excerptTranscript` returns linesUsed/linesTotal; orphaned — grep finds no consumer in src/"
-      - path: "src/runs.tsx"
-        issue: "The run status page renders no transcript coverage figure"
-    missing:
-      - "Render linesUsed/linesTotal on the run page, or warn before the run is paid for"
-    already_tracked: ".planning/todos/pending/context-layer-for-drafts.md (substance ceiling), steer-draft-topics.md (topic control)"
+verified: 2026-09-15T15:35:00Z
+status: human_needed
+score: 4/4 truths verified in code; 1 awaiting live confirmation
+re_verification:
+  previous_status: gaps_found
+  previous_score: 4/5 must-haves verified
+  gaps_closed:
+    - "Drafts contain only material from the executive's transcript lines and voice samples — the citation-only proxy is deleted and replaced by a whole-post check, independently re-proved against the exact attack the original gap described"
+    - "The user can see what of their transcript was actually used — coverage stored at run creation and rendered before and after the run"
+  gaps_remaining: []
+  regressions: []
+human_verification:
+  - test: >-
+      Buy one fresh run (~$0.10) on the deployed version and read the grounding
+      panel beside each of the three drafts.
+    expected: >-
+      The amber "could not be traced back to your own words" lines are genuinely
+      not the executive's material, and any line NOT flagged genuinely is theirs.
+      The `supported / checked` figure is plausible against the post on screen.
+    why_human: >-
+      Requires a paid OpenAI call and a judgement about the executive's own
+      voice that no grep can make. The check was calibrated against run 1's real
+      drafts (03-05), but the rendered panel has only ever been driven against
+      hand-seeded D1 rows. This is the observation that decides whether the
+      instrument earns its place on the page.
+  - test: >-
+      On that same run, confirm the panel renders a report that the live write
+      path produced, end to end.
+    expected: >-
+      A report appears (not "Written before the current grounding check"), with
+      counts and any flagged lines matching what the post actually says.
+    why_human: >-
+      `toGroundingJson` (writer, src/db.ts) and `parseGrounding` (reader,
+      src/runs.tsx) are both module-private and have never been executed against
+      each other. I verified their nine field names and types agree by reading
+      both sides, but no test or observed run has exercised the round trip:
+      every render state was seeded with hand-written JSON.
+  - test: "Open /health (or /health.json) on the deployed version in an authenticated browser."
+    expected: "D1 round-trip succeeds and all three secrets report as set."
+    why_human: >-
+      Cloudflare Access is fail-closed and no service token exists. I confirmed
+      this myself: an unauthenticated request returns 302 to the Access login
+      with `service_token_status: false`, `auth_status: NONE`. /health has not
+      been seen green since version b3156846; the current deploy is f17cf55d.
 ---
 
 # Phase 3: Drafting Verification Report
 
 **Phase Goal:** A run turns one transcript plus two or three pasted outliers into three LinkedIn drafts in the executive's voice
 **Verified:** 2026-09-15
-**Status:** gaps_found — split verdict
-**Re-verification:** No — initial verification
-**Human verification:** Already performed on a real paid production run; its findings are incorporated below as evidence, not re-requested.
+**Status:** human_needed — all four criteria hold in code; three narrow observations remain unmade
+**Re-verification:** Yes — after the 03-05 / 03-06 / 03-07 gap-closure wave
 
 ## Verdict in one line
 
-The machinery works — a run really does turn a transcript plus pasted outliers into three drafts,
-and the compliance boundary holds. The quality guard that was supposed to prove the drafts stay
-inside the executive's own words does not do that job, and production data proves it wrong in
-both directions.
+The gap that failed this phase is genuinely closed — I re-proved it against the
+codebase rather than the SUMMARYs, and the exact attack the original finding
+described now fails where it used to pass. What is left is not a code gap but an
+observation gap: the panel that reports the result has never rendered a report
+produced by a real run.
+
+## What changed since the last report
+
+| Previous gap | Status now | Evidence I produced myself |
+|---|---|---|
+| Gap 1 — `isGrounded` checked the model's 1-3 self-reported citations, never the post | **CLOSED** | `grep -rn "isGrounded" src/ test/` returns nothing (exit 1). `checkGrounding` iterates `splitSentences(post)` over the whole body. Adversarial probe below. |
+| Gap 2 — `linesUsed`/`linesTotal` computed, tested, never rendered | **CLOSED** | Stored at creation (`createRun` takes `TranscriptCoverage`, migration 0004 adds both columns), rendered by `TranscriptCoverage` (runs.tsx:303) on the run page, and warned about on the new-run form before the run is paid for. NULL renders as silence, which is correct for pre-0004 runs. |
+
+No regressions. Criteria 1, 2, 3b and 4 were re-checked and still hold.
+
+## The gap-1 re-proof, done independently
+
+I did not take the 57 passing tests as evidence, because the previous report
+failed exactly there: the old tests were correct about what `isGrounded` did and
+never asked whether it was sufficient. I wrote six adversarial probes against the
+real exported function, ran them, and deleted the file afterwards (working tree
+confirmed clean).
+
+The decisive one reconstructs the original finding's attack — a post whose three
+citations are genuine transcript quotes and whose body is entirely invented:
+
+| Probe | Question | Result |
+|---|---|---|
+| 1 | Three genuine citations + a fully fabricated body | `citationsResolved: true` but **`grounded: false`**, with all three invented sentences (a fake McKinsey statistic, a fake hours figure, generic AI commentary) quoted back verbatim in `unsupported`. **This is the attack that used to pass.** |
+| 2 | An honest post built from the executive's own words | `grounded: true`, `supported 5/5`, nothing flagged. No false warning. |
+| 3 | Run 1 draft 2's shape — an invented slogan printed twice | `repeated: ["collect the prompts build authority become visible"]`, `grounded: false`. Caught by the cross-sentence n-gram, as designed. |
+| 4 | A long invented sentence said only once | Flagged in `unsupported`. |
+| 5 | A short invented sentence said once ("Jersey will lose.") | **Escapes into `skipped: 1`** — the documented blind spot is real. |
+| 6 | An outlier's phrasing appearing in a draft | Flagged `unsupported` — outlier bodies are correctly absent from the pool. |
+
+Probe 5 matters as much as probe 1. The blind spot is real, and the code does not
+hide it: the doc comment states it, a test pins it, and `GroundingPanel` prints
+"N short or connecting lines were too generic to check" in **every** state where a
+report exists. That is the difference between this check and the one it replaced —
+the old one presented a narrow result as a whole-output guarantee; this one reports
+its own scope.
 
 ## Goal Achievement
 
-### Observable Truths
-
 | # | Truth | Status | Evidence |
-|---|-------|--------|----------|
-| 1 | User pastes two or three outlier posts, picks one imported transcript, and starts a run | VERIFIED | `NewRunForm` (runs.tsx:193) renders a transcript `<select>` plus three textareas, first two `required`. `POST /runs` (643) validates the id pattern, confirms the transcript exists, counts non-empty bodies against MIN/MAX_OUTLIERS, caps each at MAX_OUTLIER_CHARS, then `createRun`. `createRun` (db.ts:258) re-asserts the 2-3 bound server-side. Pasting is the only route in; no URL field exists. |
-| 2 | The run produces exactly three drafts, each filled from one of the run's extracted templates | VERIFIED | `createRun` inserts `DRAFTS_PER_RUN = 3` draft rows, each with `outlier_id = outlierIds[(position - 1) % outlierIds.length]` (db.ts:285-294), so with two outliers drafts map 1,2,1 and with three 1,2,3 — always a real template of this run. `claimNextJob` will not surrender a draft until `o.template_json IS NOT NULL` (db.ts:350). The step route parses `job.template` into the `<format>` block (runs.tsx:803). |
-| 3a | Drafts contain only material from the executive's transcript lines and voice samples | **FAILED** | The guard checks citations, not the post. Production draft 2: `grounded = 1`, contains an invented line twice. Production draft 1: `grounded = 0`, quotes genuine. Reproduced locally — see Gap 1. |
-| 3b | Templates are stored but never shown in the UI | VERIFIED | Structural, not rendering discipline: `getRunView` (db.ts:480) selects `id, position, substr(body,...) AS excerpt, status, attempts, error_code, error_message` — `template_json` is absent from the projection, so the column never enters the render tree. `OutlierView` has no template field. `TemplateSteps` (runs.tsx:296) shows status plus an 80-char excerpt of the *pasted* post only. Grep for `template` in runs.tsx returns only the step route's own `JSON.parse(job.template)` on the server path. |
-| 4 | User sees the run's status while it generates, sees a clear error if OpenAI fails, and can retry | VERIFIED | `GET /runs/:id` shows "N of M steps done" plus per-step state; `Failure` (281) renders OpenAI's own message and code beside the failing step; `RunControl` explains permanent vs attempt-exhausted halts. `RetryForm` posts to `/runs/:id/retry` → `resetRunJobs`, whose `WHERE ... status != 'done'` means a finished call is never re-paid for. Exercised end to end on a real paid run. |
+|---|---|---|---|
+| 1 | User pastes two or three outliers, picks one imported transcript, starts a run | VERIFIED | `MIN_OUTLIERS = 2`, `MAX_OUTLIERS = 3` enforced in `POST /runs` (runs.tsx:832-836) and re-asserted in `createRun`. Six routes present. Paste is the only route in. |
+| 2 | Exactly three drafts, each from one of the run's extracted templates | VERIFIED | `DRAFTS_PER_RUN = 3` (db.ts:156), loop at db.ts:387. `claimNextJob` will not surrender a draft until `o.template_json IS NOT NULL` (db.ts:452). |
+| 3a | Drafts contain only material from the executive's transcript and voice samples | **VERIFIED (code) — see human_verification** | Two halves. *Compliance:* `src/prompts.ts` has **zero imports** (grep confirms), every builder takes primitives, and the call site reads `transcript.body` out of the row so `title` cannot travel. *Mechanical:* `checkGrounding(value.post, value.source_lines, [transcript.body, ...sampleBodies])` at runs.tsx:999 — whole post, outliers excluded, full transcript as the pool (a superset of what the model saw, so leniency only). Re-proved above. |
+| 3b | Templates are stored but never shown in the UI | VERIFIED | Structural. `getRunView`'s outlier projection is `id, position, substr(body,1,80) AS excerpt, status, attempts, error_code, error_message` — `template_json` absent. `grep -n "template" src/runs.tsx` returns five hits, none in a render path: two are comments, two are the step route's own `JSON.parse(job.template)` and schema name, one is a `Set` of outlier **ids**. |
+| 4 | Status while generating, clear error if OpenAI fails, retry | VERIFIED | `GET /runs/:id` renders per-step state; `Failure` renders OpenAI's own code and message; `POST /runs/:id/retry` → `resetRunJobs`, which skips `done` rows so a finished call is never re-paid for. |
 
-**Score:** 4/5 truths verified.
+**Score:** 4/4 truths verified in code. Truth 3a carries an unobserved half (below).
 
-### Required Artifacts
-
-| Artifact | Expected | Status | Details |
-|----------|----------|--------|---------|
-| `src/prompts.ts` | Builders, schemas, grounding check, 120+ lines | SUBSTANTIVE, WIRED (one function under-delivers) | 249 lines. All 10 declared exports present. **Zero imports** — the compliance boundary is enforced by construction. `isGrounded` exists and is wired but does not cover the goal it was written for. |
-| `test/prompts.test.ts` | Caps, block ordering, primitives-only, grounding, 80+ lines | SUBSTANTIVE, WIRED | 265 lines, imports from `../src/prompts`. 34 tests pass across the suite. The tests are correct about what `isGrounded` does; they simply never asked whether checking citations alone is sufficient. |
-| `migrations/0003_runs.sql` | runs, outliers, drafts | VERIFIED | 68 lines, three tables plus two indexes, compliance header naming the three fields allowed to leave the Worker. `template_json` commented "never rendered". |
-| `src/db.ts` | Run and job helpers | VERIFIED | All 8 declared exports present. |
-| `src/openai.ts` | Responses client with strict schema and error classification | VERIFIED | 230 lines. `callStructured` + `OpenAIError` exported. |
-| `src/runs.tsx` | Front door, status view, step engine, retry, 250+ lines | VERIFIED | 854 lines. All routes present: `GET /runs`, `GET /runs/new`, `POST /runs`, `GET /runs/:id`, `POST /runs/:id/step`, `POST /runs/:id/retry`. |
-| `src/index.tsx` | Runs router mounted | VERIFIED | `app.route("/", runs)` line 33, behind Access and `csrf()`. |
-| `src/layout.tsx` | Runs in nav | VERIFIED | `{ href: "/runs", label: "Runs" }` line 43. |
-
-### Key Link Verification
-
-| From | To | Via | Status |
-|------|-----|-----|--------|
-| `POST /runs/:id/step` | `claimNextJob` | Claim before spending — call happens only if claim won | WIRED (runs.tsx:754, returns 303 on null) |
-| `claimNextJob` | conditional UPDATE | `meta.changes === 1` compare-and-swap on (status, started_at) | WIRED (db.ts:390) |
-| `callStructured` | `/v1/responses` | `store: false`, `strict: true`, `type: "json_schema"` | WIRED (openai.ts:136-144) |
-| `callStructured` | message item | `output.find(item => item.type === "message")`, never `output[0]` | WIRED (openai.ts:202) |
-| `POST /runs/:id/step` | `buildDraftingInput` | Primitives only — `samples.map(s => s.body)`, `transcript.body`, parsed template | WIRED (runs.tsx:800-804). Only `transcript.body` is read; `title` never reaches the call site. |
-| run status page | `POST /runs/:id/step` | Self-submitting form, gated on `advance.auto` | WIRED (runs.tsx:541-549) |
-| `POST /runs` | `createRun` | Validated transcript id and outlier bodies | WIRED (runs.tsx:668) |
-| `GET /runs/:id` | `getRunView` | One read per table, no `template_json` | WIRED (runs.tsx:678) |
-| `finishDraft` | `isGrounded` | Whole-post verification | **NOT WIRED — citations only** (runs.tsx:817) |
-| `excerptTranscript` | run status page | "using the first N of M lines" | **ORPHANED — no consumer in `src/`** |
-
-### Requirements Coverage
+## Requirements Coverage
 
 | Requirement | Status | Note |
-|-------------|--------|------|
-| OUTL-01 — paste two or three outlier posts | SATISFIED | Validated both client and server side. |
-| OUTL-02 — extract template, store, never show | SATISFIED | Stored in `template_json`; excluded at the query, not at the template. |
+|---|---|---|
+| OUTL-01 — paste two or three outlier posts | SATISFIED | |
+| OUTL-02 — extract template, store, never show | SATISFIED | Excluded at the SQL projection, not at the template. |
 | DRAFT-01 — start a run from one transcript plus the outliers | SATISFIED | |
 | DRAFT-02 — exactly three drafts, each from one of the run's templates | SATISFIED | |
-| DRAFT-03 — drafts draw only on the executive's own words | **PARTIAL** | Two halves, opposite verdicts. *No other speaker's words can reach OpenAI* — structurally sound: `prompts.ts` has zero imports, every builder takes primitives, only `transcripts.body` (speaker-filtered at import by migration 0002), `voice_samples.body` and user-pasted `outliers.body` leave the Worker. *Drafts contain nothing invented* — unproven and, on the one production run, false. The prompt forbids invention; the check does not detect it. |
+| DRAFT-03 — drafts draw only on the executive's own words | **SATISFIED** (was PARTIAL) | Both halves now hold. The compliance half was always sound; the mechanical half now reads the whole post and reports its own blind spot instead of overclaiming. |
 | DRAFT-05 — status, clear error, retry | SATISFIED | |
 
-### Anti-Patterns Found
+## Compliance Boundary (re-checked, all four asked for)
 
-| File | Pattern | Severity | Impact |
-|------|---------|----------|--------|
-| `src/prompts.ts` | `isGrounded` validates a model-chosen subset and is treated as a whole-output guarantee | Blocker (for criterion 3) | Stores `grounded = 1` on demonstrably ungrounded output. The warning the user is meant to trust fires on correct drafts and stays silent on invented ones. |
-| `src/prompts.ts` / `src/runs.tsx` | `linesUsed`/`linesTotal` computed, tested, never rendered | Warning | A third of a real transcript was dropped silently. |
+| Check | Result |
+|---|---|
+| `isGrounded` absent from `src/` and `test/` | **Confirmed** — grep exits 1 |
+| `outliers.template_json` out of the `getRunView` projection and rendered nowhere | **Confirmed** — absent from the SQL, absent from `OutlierView`, no render-path hit |
+| `src/prompts.ts` import-free and primitives-only | **Confirmed** — zero import statements; asserted by test at both halves |
+| `store: false` on every OpenAI request | **Confirmed** — one request site exists in the whole codebase (`openai.ts:121`, the only `fetch` to `api.openai.com`), and `store: false` is on it (line 138) |
 
-No TODO, FIXME, placeholder, "coming soon" or "not implemented" markers in any phase-3 file.
-`npx tsc --noEmit` exits 0. `npm test` passes 34/34.
+## Build Health (run by me, not quoted)
 
-### Human Verification
+- `npm test` → **57/57 passed**, 2 files (was 34 at last verification; three `isGrounded` tests correctly deleted).
+- `npm run check` → `wrangler types` regenerated, `tsc --noEmit` **exit 0**.
+- Working tree clean apart from pre-existing untracked `logs/` and `prd.md`.
+- Deployed version `f17cf55d` was cut at `116f4ef`; the only commit after it is docs-only, so deployed code matches HEAD.
 
-Already completed on a real paid production run before this report; not re-requested. It is the
-source of the criterion 3 verdict, and it is the reason that verdict contradicts the SUMMARYs —
-`03-04-SUMMARY.md` reports the grounding check as working because every automated test of it
-passes. The tests assert what the function does, not what the criterion requires.
+No TODO, FIXME, placeholder or "not implemented" markers in any phase-3 file.
 
-### Gaps Summary
+## What I could not check
 
-Three of the four roadmap criteria are met in code and were exercised end to end on a paid run.
-The run front door validates properly, the job model is genuinely idempotent (claim-then-work with
-a compare-and-swap, `attempts` incremented inside the claim, retry that skips `done`), the OpenAI
-client classifies errors by `error.code` and surfaces them verbatim, and the auto-advance is
-conservatively gated so the page cannot loop money away against a route that can only redirect.
+- **Anything behind Cloudflare Access.** I probed `/health.json` myself: HTTP 302 to the Access login, `service_token_status: false`, `auth_status: NONE`. The gate is correctly fail-closed, and that is also why the live run page and `/health` are unobservable from here.
+- **A paid OpenAI run.** No fresh run was bought, so no real draft has been through the live write path since 03-07.
+- **Production D1 contents.** Not queried; run 1's stored rows were read by 03-05 during calibration, not by me.
+- **The `toGroundingJson` → `parseGrounding` round trip in execution.** Both are module-private with no test file for `src/db.ts`. I verified all nine field names and their types agree by reading both sides, so the failure mode that would matter (a renamed key silently rendering every draft as "no report") is ruled out by inspection — but not by running it.
 
-The compliance half of criterion 3 is the strongest part of the phase: `prompts.ts` having zero
-imports makes the Jersey/JFSC constraint unbreakable by accident rather than by discipline, and
-the template-hiding is enforced in the SQL projection rather than in JSX.
+## Why human_needed rather than passed
 
-What fails is the quality half of criterion 3. "Drafts contain only material from the executive's
-transcript lines and voice samples" is the one criterion that cannot be satisfied by wiring, and
-it is the one where the code checks a proxy — the model's own self-reported citations — rather
-than the thing being claimed. Production data proves the proxy wrong in both directions on a
-single run of three drafts: one false pass carrying an invented slogan printed twice, one false
-warning on genuine quotes. A warning that fires on correct output and misses fabricated output is
-worse than no warning, because it trains the user to ignore exactly the signal that guards
-DRAFT-03.
+Nothing in the code is missing, stubbed or unwired, so this is not `gaps_found`.
+But rounding it up to `passed` would repeat the mistake that produced the original
+finding: treating "the mechanism exists and its tests are green" as "the outcome is
+confirmed".
 
-All gaps are already recorded as deferred Phase 4 work in `.planning/todos/pending/` and nothing
-was fixed during this verification, so report and code stay in step.
+Concretely, the panel has been seen against seven hand-seeded D1 rows covering
+every render branch — and never against a report that the Worker itself wrote. The
+seeding validates the reader; it cannot validate the writer, and those are the two
+halves of a round trip that has never met. The judgement that decides whether the
+instrument is worth having — are the amber lines genuinely foreign to the
+executive's voice — is also unmade. The 03-07 checkpoint was approved without the
+three observations being reported back, and the SUMMARY says so plainly, which is
+to its credit and is the reason I can be precise about what is missing.
+
+One paid run closes all three items at once.
+
+## Explicitly NOT a criterion-3 failure
+
+Run 1 produced three drafts the executive would not publish. That is real, it is
+the open risk of the project, and it is tracked in STATE.md and in
+`.planning/todos/pending/` (`steer-draft-topics.md`, `context-layer-for-drafts.md`)
+as Phase 4 work. It is a **draft-quality** problem, not a compliance one.
+
+Criterion 3 asks whether the code confines drafts to the executive's own material
+and reports honestly on how well it managed. It now does both. Conflating the two
+would either fail this phase for something it never promised, or — worse — let the
+quality problem be quietly marked closed because a grounding check exists. The
+gap-closure wave fixed the instrument, not the output, and both this report and
+STATE.md should keep saying so.
 
 ---
 
