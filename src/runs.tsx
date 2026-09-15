@@ -34,6 +34,7 @@ import {
   MAX_OUTLIER_CHARS,
   MAX_OUTPUT_DRAFT,
   MAX_OUTPUT_EXTRACT,
+  MAX_SAMPLES,
   MODEL_DRAFT,
   MODEL_EXTRACT,
   TEMPLATE_SCHEMA,
@@ -189,7 +190,13 @@ function RunTable({ rows }: { rows: RunSummary[] }) {
   );
 }
 
-function NewRunForm({ transcripts }: { transcripts: TranscriptSummary[] }) {
+function NewRunForm({
+  transcripts,
+  sampleCount,
+}: {
+  transcripts: TranscriptSummary[];
+  sampleCount: number;
+}) {
   if (transcripts.length === 0) {
     return (
       <p>
@@ -212,6 +219,23 @@ function NewRunForm({ transcripts }: { transcripts: TranscriptSummary[] }) {
         </select>
       </p>
       <p class="hint">Only your own lines were kept on import; that is all the model sees.</p>
+
+      {/*
+        Voice samples are the other half of the drafting input, and a run with
+        none of them is the weakest version of what this does — worth saying
+        before the run is paid for rather than after the drafts disappoint.
+      */}
+      {sampleCount === 0 ? (
+        <p class="notice warn">
+          No voice samples saved yet, so the drafts will have only this transcript to match your
+          voice against. <a href="/sources">Paste a post or two you have written</a> first: it is
+          the single biggest lever on whether the drafts sound like you.
+        </p>
+      ) : (
+        <p class="hint">
+          {`${sampleCount} voice sample${sampleCount === 1 ? "" : "s"} saved; the ${Math.min(sampleCount, MAX_SAMPLES)} most recent go into every draft.`}
+        </p>
+      )}
 
       <h3>Outlier posts</h3>
       <p class="hint">
@@ -603,11 +627,12 @@ runs.get("/runs", async (c) => {
 
 runs.get("/runs/new", async (c) => {
   const transcripts = await listTranscripts(c.env.DB);
+  const samples = await listVoiceSamples(c.env.DB);
 
   return c.html(
     <Layout title="Pipeflick — new run">
       <h2>New run</h2>
-      <NewRunForm transcripts={transcripts} />
+      <NewRunForm transcripts={transcripts} sampleCount={samples.length} />
       <p>
         <a href="/runs">Back to runs</a>
       </p>
