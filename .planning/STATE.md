@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** Drafts sound like the executive and follow a proven format, so at least 80% get approved with only light edits and a week of content costs them about an hour instead of eight.
-**Current focus:** Phase 3 — Drafting, wave 1 complete (03-01 prompts/schemas, 03-02 run substrate + OpenAI client); 03-03 (runs router) unblocked
+**Current focus:** Phase 3 — Drafting, waves 1 and 2 complete (03-01 prompts/schemas, 03-02 run substrate + OpenAI client, 03-03 runs router and status page); 03-04 (step route, first live OpenAI call) unblocked
 
 ## Current Position
 
 Phase: 3 of 5 (Drafting)
-Plan: 2 of 4 complete (03-01, 03-02). Waves: [03-01 ✓, 03-02 ✓] → [03-03] → [03-04]
-Status: In progress — wave 1 done. Migration 0003 applied local AND remote; job helpers and the OpenAI client type-check and compose; 34 tests green
-Last activity: 2026-09-15 — Completed 03-02-PLAN.md (migration 0003, run/job helpers, src/openai.ts)
+Plan: 3 of 4 complete (03-01, 03-02, 03-03). Waves: [03-01 ✓, 03-02 ✓] → [03-03 ✓] → [03-04]
+Status: In progress — waves 1 and 2 done. A run can be created through the UI and watched; every job state renders. Nothing advances a run yet and no OpenAI call has been made; 34 tests green
+Last activity: 2026-09-15 — Completed 03-03-PLAN.md (src/runs.tsx: run list, new-run form, run creation, status view)
 
-Progress: ██████░░░░ 62% (8 of 13 plans)
+Progress: ███████░░░ 69% (9 of 13 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: ~8 min agent time
-- Total execution time: ~0.8 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 verification checkpoint)
+- Total execution time: ~0.9 hours agent time (excluding user time on the Cloudflare dashboard, filling .dev.vars, and the 02-03 verification checkpoint)
 
 **By Phase:**
 
@@ -33,6 +33,7 @@ Progress: ██████░░░░ 62% (8 of 13 plans)
 **Recent Trend:**
 - Last 5 plans: 01-02 (~15 min, includes a human-action pause), 01-03 (~15 min agent, ~42 min wall with two human pauses), 02-01 (~3 min, fully autonomous TDD), 02-02 (~4 min, fully autonomous, ran in parallel with 02-01), 02-03 (~8 min agent, ~20 min wall with one human-verify checkpoint)
 - Wave 1 of Phase 3 ran two plans in parallel with zero file overlap (03-01: prompts/tests; 03-02: migration/db/openai). 03-02 took ~8 min fully autonomous
+- 03-03 (~5 min, fully autonomous): the fastest plan yet, because 03-02 had already shaped the reads the page needed — the only work was rendering and validation
 - Trend: steady — Phase 2 averaged ~5 min per plan; the only wall-clock cost was the single verification checkpoint in 02-03, which is exactly where a human should be in the loop (first real executive data)
 
 ## Accumulated Context
@@ -85,6 +86,12 @@ Recent decisions affecting current work:
 - 03-02: `resetRunJobs` resets only `status != 'done'` rows (verified by before/after dump), so Retry never re-pays for a finished OpenAI call. `getRunView` omits both `template_json` and `outliers.body` at the query
 - 03-02: `claimNextJob` returns the template as the raw JSON string, so `src/db.ts` imports nothing from `src/prompts.ts`; `finishOutlier`/`finishDraft` take the OpenAI `usage` object structurally and flatten it to `{input_tokens, output_tokens, reasoning_tokens}` before writing `usage_json`
 - 03-02: migration 0003 added `drafts.grounded INTEGER` (not in 03-RESEARCH.md's DDL) because `finishDraft` must store the source-line check; `usage_json` on both job tables makes the cost estimate a measurement after two runs
+- 03-03: run progress is always `done_jobs` of `total_jobs`, never "of 6" — `createRun` accepts 2 or 3 outliers, so a run has 5 or 6 steps and a hardcoded 6 would permanently misreport a finished two-outlier run
+- 03-03: the status page's outlier excerpt is cut by SQLite `substr(body, 1, 80)` inside the `getRunView` projection (`OUTLIER_EXCERPT_CHARS`), so the page stays at three reads and the rest of the pasted post never enters the Worker. `template_json` remains unselected — that rule is untouched
+- 03-03: `getRunView` LEFT JOINs the transcript title into `RunView.transcript_title` (the `listRuns` pattern), so a deleted transcript renders "(transcript deleted)" instead of dropping the run
+- 03-03: an ungrounded draft gets amber `.notice.warn`, not red `.notice.error` — it is a reviewer's cue, not a failed step, and the draft is always still shown
+- 03-03: a malformed run id is 400 and an unknown run is 404, matching the `src/sources.tsx` transcript-detail precedent. `RUN_ID_PATTERN` guards the UUID shape before D1
+- 03-03: route table is `GET /runs`, `GET /runs/new`, `POST /runs`, `GET /runs/:id`; components are `RunTable`, `NewRunForm`, `StepStatus`, `Failure`, `TemplateSteps`, `DraftSection`, `progress`. 03-04's auto-advance form belongs between the progress paragraph and `<h3>Templates</h3>`
 - 03-02: `src/openai.ts` classifies by `error.code` — the four billing/spend/usage 429 codes are NOT retryable; `bad_json` and `bad_body` were added so no unhandled `SyntaxError` can 500 the step route and strand a claimed job. `retryable` is computed, NOT persisted: 03-04 must map `error_code` back to retryability (table in 03-02-SUMMARY.md) or persist the flag in migration 0004
 
 ### Pending Todos
@@ -106,10 +113,13 @@ Recent decisions affecting current work:
 - Phase 2 (verification, info): `POST /sources/samples` has run locally but never against production D1 (remote `voice_samples` is empty); the deployed bundle is identical, so this is usage-not-yet-occurred, not a gap
 - Phase 3 (03-02, info): `npm run db:migrate:remote` failed once with Cloudflare API error 7403 ("account not valid or not authorized") on a valid token with `d1 (write)`, then succeeded on an immediate retry. Transient API-side failure — retry before re-authenticating
 - Phase 3 (03-02, for 03-04): `OpenAIError.retryable` is not stored on the job row. The auto-advance guard needs retryability, so 03-04 must derive it from `error_code` or add a column
+- Phase 3 (03-03, for 03-04): the run page's "Nothing has run yet" notice is worded for a world with no engine ("running them is the next piece of the build") and must be rewritten when the step route lands
+- Phase 3 (03-03, minor): `/runs` lists every run with no paging, like `/sources`. Fine at pilot scale, but `listRuns` counts jobs per run with subqueries, so a long history would want a limit
+- Phase 3 (03-03, minor): `POST /runs` calls `getTranscript` only to prove the transcript exists, loading the whole body to discard it. Harmless at one executive's scale
 - Phase 5: confirm the Zernio API is available on Vincent's plan and supports LinkedIn drafts (replaces the earlier Metricool concern)
 
 ## Session Continuity
 
 Last session: 2026-09-15
-Stopped at: Wave 1 of Phase 3 complete. 03-01 — `src/prompts.ts` + `test/prompts.test.ts` (TDD: RED `88ad0b4`, GREEN `01f551d`). 03-02 — migration 0003 applied local and remote (`8498a59`), run/job helpers (`39f7974`), `src/openai.ts` (`1f12349`), usage-shape alignment (`2137655`). 34 tests green, `tsc --noEmit` clean, no OpenAI call made yet. Next: 03-03 (runs router), then 03-04 (step route, first live call)
+Stopped at: Waves 1 and 2 of Phase 3 complete. 03-01 — `src/prompts.ts` + `test/prompts.test.ts` (TDD: RED `88ad0b4`, GREEN `01f551d`). 03-02 — migration 0003 applied local and remote (`8498a59`), run/job helpers (`39f7974`), `src/openai.ts` (`1f12349`), usage-shape alignment (`2137655`). 03-03 — runs router and creation (`dcca167`), status view (`333a2b6`). 34 tests green, `tsc --noEmit` clean, local D1 back to zero run rows, still no OpenAI call made. Next: 03-04 (step route, first live call, auto-advance)
 Resume file: None
