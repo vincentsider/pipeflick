@@ -6,6 +6,11 @@ import {
   DRAFT_INSTRUCTIONS,
   DRAFT_SCHEMA,
   EXTRACT_INSTRUCTIONS,
+  GROUNDING_MIN_CLAIM_TOKENS,
+  GROUNDING_REPEAT_TOKENS,
+  GROUNDING_SHINGLE_TOKENS,
+  GROUNDING_SUPPORT_RATIO,
+  LEADING_CONNECTIVES,
   MAX_OUTLIER_CHARS,
   MAX_OUTPUT_DRAFT,
   MAX_OUTPUT_EXTRACT,
@@ -19,8 +24,11 @@ import {
   TIMEOUT_EXTRACT_MS,
   buildDraftingInput,
   buildExtractionInput,
+  checkGrounding,
   excerptTranscript,
   isGrounded,
+  normaliseForMatch,
+  splitSentences,
   type Template,
 } from "../src/prompts";
 
@@ -241,6 +249,8 @@ describe("instructions", () => {
       expect(DRAFT_INSTRUCTIONS).toContain(banned);
     }
     expect(DRAFT_INSTRUCTIONS).toContain("Do not use em dashes.");
+    // 03-05: the cheap half of the repetition fix. The check detects; the prompt prevents.
+    expect(DRAFT_INSTRUCTIONS).toContain("Never repeat a sentence or phrase verbatim within the post.");
   });
 });
 
@@ -261,5 +271,247 @@ describe("isGrounded", () => {
     expect(isGrounded(transcriptBody, [])).toBe(false);
     expect(isGrounded(transcriptBody, ["  "])).toBe(false);
     expect(isGrounded("", ["anything"])).toBe(false);
+  });
+});
+
+// --- Whole-post grounding (03-05) -------------------------------------------
+// The two production failures below are verbatim from run 1 and are already
+// recorded in .planning/todos/pending/normalise-grounding-match.md.
+
+/** Stands in for [transcriptBody, ...voiceSampleBodies] — the executive's own material only. */
+const groundingTranscript = [
+  "Meaning in the short terms you have to choose your battle, right?",
+  "And that the two combined make your website authoritative and visible.",
+  "We spent about six months getting the fund administration margin right.",
+  "Nobody builds distribution before the product actually works, in my experience.",
+].join("\n");
+
+const groundingSample = "We only ever write about what we have actually shipped for a client.";
+
+const sources = [groundingTranscript, groundingSample];
+
+describe("grounding constants", () => {
+  it("pins the thresholds so the tuning levers stay in one place", () => {
+    expect(GROUNDING_MIN_CLAIM_TOKENS).toBe(6);
+    expect(GROUNDING_SHINGLE_TOKENS).toBe(4);
+    expect(GROUNDING_SUPPORT_RATIO).toBe(0.5);
+    expect(GROUNDING_REPEAT_TOKENS).toBe(6);
+  });
+
+  it("lists the leading connectives a model trims off a quote", () => {
+    for (const connective of ["meaning", "and that", "and", "so", "but", "right"]) {
+      expect(LEADING_CONNECTIVES).toContain(connective);
+    }
+  });
+});
+
+describe("normaliseForMatch", () => {
+  it("lowercases, collapses whitespace and trims", () => {
+    expect(normaliseForMatch("  The   Two\ncombined  ")).toBe("the two combined");
+  });
+
+  it("normalises curly quotes and dashes to ASCII", () => {
+    expect(normaliseForMatch("“It’s fine — really.”")).toBe("it's fine - really");
+    expect(normaliseForMatch("half–yearly")).toBe("half-yearly");
+  });
+
+  it("strips a leading connective, longest match first", () => {
+    expect(normaliseForMatch("And that the two combined make your website visible.")).toBe(
+      "the two combined make your website visible",
+    );
+    expect(normaliseForMatch("Meaning in the short terms you have to choose your battle, right?")).toBe(
+      "in the short terms you have to choose your battle, right",
+    );
+  });
+
+  it("strips a second leading connective, because speech stacks them", () => {
+    expect(normaliseForMatch("So and we shipped it.")).toBe("we shipped it");
+    expect(normaliseForMatch("Well, okay, we shipped it.")).toBe("we shipped it");
+  });
+
+  it("only strips at the very start, never mid-sentence", () => {
+    expect(normaliseForMatch("We shipped and that was it.")).toBe("we shipped and that was it");
+  });
+
+  it("strips leading and trailing punctuation", () => {
+    expect(normaliseForMatch("...we shipped it!!")).toBe("we shipped it");
+  });
+
+  it("returns an empty string for whitespace or punctuation only", () => {
+    expect(normaliseForMatch("   ")).toBe("");
+    expect(normaliseForMatch(" -- ")).toBe("");
+  });
+});
+
+describe("splitSentences", () => {
+  it("splits on line breaks and terminators, keeping the raw text", () => {
+    expect(splitSentences("One thing.\nTwo things! Three?")).toEqual([
+      "One thing.",
+      "Two things!",
+      "Three?",
+    ]);
+  });
+
+  it("drops empty pieces and blank lines", () => {
+    expect(splitSentences("\n\n  One thing.  \n\n")).toEqual(["One thing."]);
+  });
+
+  it("keeps a trailing fragment that has no terminator", () => {
+    expect(splitSentences("One thing. And then this")).toEqual(["One thing.", "And then this"]);
+  });
+
+  it("does not split a decimal or a percentage mid-number", () => {
+    expect(splitSentences("Margins sat at 60.5% last year. Then they moved.")).toEqual([
+      "Margins sat at 60.5% last year.",
+      "Then they moved.",
+    ]);
+  });
+});
+
+describe("checkGrounding", () => {
+  it("resolves a citation the model tidied (production run 1, draft 1 false warning)", () => {
+    // Reported: "In the short terms..." / Transcript: "Meaning in the short terms..."
+    // Reported: "The two combined..."   / Transcript: "And that the two combined..."
+    const report = checkGrounding(
+      "In the short terms you have to choose your battle, right?",
+      [
+        "In the short terms you have to choose your battle, right?",
+        "The two combined make your website authoritative and visible.",
+      ],
+      sources,
+    );
+
+    expect(report.citationsResolved).toBe(true);
+    expect(report.unsupported).toEqual([]);
+    expect(report.grounded).toBe(true);
+  });
+
+  it("catches an invented phrase the post repeats (production run 1, draft 2 false pass)", () => {
+    // Every citation is genuine, every long sentence is genuine, and the post is
+    // still fabricated: "Collect the prompts. Build authority. Become visible."
+    // is nowhere in the sources and is printed twice.
+    const post = [
+      "We spent about six months getting the fund administration margin right.",
+      "",
+      "Collect the prompts. Build authority. Become visible.",
+      "",
+      "Nobody builds distribution before the product actually works, in my experience.",
+      "",
+      "Collect the prompts. Build authority. Become visible.",
+    ].join("\n");
+
+    const report = checkGrounding(
+      post,
+      ["We spent about six months getting the fund administration margin right."],
+      sources,
+    );
+
+    expect(report.citationsResolved).toBe(true);
+    expect(report.unsupported).toEqual([]);
+    expect(report.repeated).toContain("collect the prompts build authority become visible");
+    expect(report.repeated).toHaveLength(1);
+    expect(report.grounded).toBe(false);
+  });
+
+  it("supports a sentence rephrased from the executive's own words", () => {
+    const report = checkGrounding(
+      "In my experience nobody builds distribution before the product actually works.",
+      ["Nobody builds distribution before the product actually works, in my experience."],
+      sources,
+    );
+
+    expect(report.checked).toBe(1);
+    expect(report.supported).toBe(1);
+    expect(report.unsupported).toEqual([]);
+    expect(report.grounded).toBe(true);
+  });
+
+  it("reports an invented sentence verbatim as the post wrote it", () => {
+    const invented = "Studies show 60% of firms fail at this within three years.";
+    const report = checkGrounding(
+      `We spent about six months getting the fund administration margin right.\n\n${invented}`,
+      ["We spent about six months getting the fund administration margin right."],
+      sources,
+    );
+
+    expect(report.unsupported).toEqual([invented]);
+    expect(report.checked).toBe(2);
+    expect(report.supported).toBe(1);
+    expect(report.grounded).toBe(false);
+  });
+
+  it("skips sentences too short to carry a claim, and says how many", () => {
+    const report = checkGrounding(
+      "Here is the thing.\n\nWe spent about six months getting the fund administration margin right.",
+      ["We spent about six months getting the fund administration margin right."],
+      sources,
+    );
+
+    expect(report.skipped).toBe(1);
+    expect(report.checked).toBe(1);
+    expect(report.supported).toBe(1);
+    expect(report.grounded).toBe(true);
+  });
+
+  it("counts voice samples as source material, not just the transcript", () => {
+    const sentence = "We only ever write about what we have actually shipped for a client.";
+
+    expect(checkGrounding(sentence, [sentence], sources).grounded).toBe(true);
+    expect(checkGrounding(sentence, [sentence], [groundingTranscript]).grounded).toBe(false);
+  });
+
+  it("does not treat an outlier's phrasing as grounding, because outliers are never in the pool", () => {
+    const outlierPhrasing = "I lost the biggest client of my career on a Tuesday afternoon.";
+    const report = checkGrounding(outlierPhrasing, [outlierPhrasing], sources);
+
+    expect(report.citationsResolved).toBe(false);
+    expect(report.unsupported).toEqual([outlierPhrasing]);
+    expect(report.grounded).toBe(false);
+  });
+
+  it("does not flag a repeat that is genuinely the executive's own phrase", () => {
+    const own = "Nobody builds distribution before the product actually works, in my experience.";
+    const report = checkGrounding(`${own}\n\n${own}`, [own], sources);
+
+    expect(report.repeated).toEqual([]);
+    expect(report.grounded).toBe(true);
+  });
+
+  it("is not grounded when the post cites nothing at all", () => {
+    const report = checkGrounding(
+      "We spent about six months getting the fund administration margin right.",
+      [],
+      sources,
+    );
+
+    expect(report.citationsResolved).toBe(false);
+    expect(report.grounded).toBe(false);
+  });
+
+  it("does not resolve a whitespace-only citation", () => {
+    // "".includes("") is always true; a naive check scores an empty citation as grounded.
+    const report = checkGrounding(
+      "We spent about six months getting the fund administration margin right.",
+      ["  "],
+      sources,
+    );
+
+    expect(report.citationsResolved).toBe(false);
+    expect(report.grounded).toBe(false);
+  });
+
+  it("is not grounded against empty sources", () => {
+    const report = checkGrounding("Anything at all, said at some length here.", ["Anything at all"], []);
+
+    expect(report.citationsResolved).toBe(false);
+    expect(report.grounded).toBe(false);
+  });
+
+  it("handles an empty post without claiming it is grounded by accident", () => {
+    const report = checkGrounding("", [], sources);
+
+    expect(report.checked).toBe(0);
+    expect(report.skipped).toBe(0);
+    expect(report.grounded).toBe(false);
   });
 });
