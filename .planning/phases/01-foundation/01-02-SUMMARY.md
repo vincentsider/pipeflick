@@ -70,8 +70,8 @@ completed: 2026-09-14
 
 Each task was committed atomically:
 
-1. **Task 1: Fail-closed Access middleware with local simulation** - `cf4f5f2` (feat)
-2. **Task 2: Access application for the workers.dev hostname** - `a34c189` (chore: script written; the application itself was created in the dashboard, which produced no file changes)
+1. **Task 1: Fail-closed Access middleware with local simulation** - `2dcf812` (feat)
+2. **Task 2: Access application for the workers.dev hostname** - `867dcac` (chore: script written; the application itself was created in the dashboard, which produced no file changes)
 3. **Task 3: Human-verify login flow** - no commit (checkpoint approved by user)
 
 **Plan metadata:** see final `docs(01-02)` commit

@@ -79,8 +79,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Run list, new-run form and run creation** — `dcca167` (feat)
-2. **Task 2: Run status view** — `333a2b6` (feat)
+1. **Task 1: Run list, new-run form and run creation** — `7135c5f` (feat)
+2. **Task 2: Run status view** — `7c34ac1` (feat)
 
 ## Route table (plan 04 edits this file)
 
@@ -133,7 +133,7 @@ Module-level helpers in the same file: `formatDate`, `formatDateTime`, `field` (
 - **Why this is not a weakening of 03-02's discipline:** `template_json` remains unselected and unexported — the rule that mattered is untouched. The body rule was "the page shows progress, not the pasted text"; an 80-character identifier cut inside SQLite respects that while making two outliers distinguishable.
 - **Files modified:** `src/db.ts`
 - **Verification:** `tsc --noEmit` exit 0; the page renders "Q3 board review" and a truncated excerpt ending in "…"; the template-leak grep still returns 0 with a template stored.
-- **Committed in:** `333a2b6` (Task 2 commit)
+- **Committed in:** `7c34ac1` (Task 2 commit)
 
 **2. [Rule 1 - Bug] "N of 6" would misreport every two-outlier run**
 - **Found during:** Task 1 (run list)
@@ -141,7 +141,7 @@ Module-level helpers in the same file: `formatDate`, `formatDateTime`, `field` (
 - **Fix:** Render `${done_jobs} of ${total_jobs} done` on the list and `${done} of ${total} steps done` on the run page, both counted from the rows.
 - **Files modified:** `src/runs.tsx`
 - **Verification:** a two-outlier run renders "0 of 5 steps done"; a three-outlier run renders "0 of 6 steps done".
-- **Committed in:** `dcca167` (Task 1) and `333a2b6` (Task 2)
+- **Committed in:** `7135c5f` (Task 1) and `7c34ac1` (Task 2)
 
 ---
 

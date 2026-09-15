@@ -71,8 +71,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: The /zernio connection page and account selection** - `1db6ae6` (feat)
-2. **Task 2: Mount the router and put Zernio in the nav** - `86296ed` (feat)
+1. **Task 1: The /zernio connection page and account selection** - `0273042` (feat)
+2. **Task 2: Mount the router and put Zernio in the nav** - `31a2eff` (feat)
 
 **Plan metadata:** see the `docs(05-03)` commit following this summary.
 
@@ -104,7 +104,7 @@ completed: 2026-09-15
 - **Issue:** Zernio's LinkedIn `username` is the person's name, not a handle, so it is identical to `displayName` on the real account. An unconditional `(@username)` suffix reads as a rendering fault.
 - **Fix:** `accountLine` shows the handle only when it differs from the label. Verified both ways — the real account renders `Vincent Sider`, the stand-in renders `Stand-in Account (@stand-in-handle)`.
 - **Files modified:** `src/zernio-routes.tsx`
-- **Commit:** `1db6ae6`
+- **Commit:** `0273042`
 
 **2. [Rule 2 - Missing Critical] A stored account that is no longer connected rendered as nothing at all**
 
@@ -112,11 +112,11 @@ completed: 2026-09-15
 - **Issue:** If the account is disconnected and reconnected in Zernio, its `_id` changes. The stored id would then quietly match nothing, no radio would be preselected, and 05-04 would push to an id this key no longer owns — a Zernio 403 at the worst possible moment, with nothing on the page having warned anyone.
 - **Fix:** when a stored id is absent from the returned list, a `.notice.warn` names the saved label and says to choose again. Observed against the stand-in.
 - **Files modified:** `src/zernio-routes.tsx`
-- **Commit:** `1db6ae6`
+- **Commit:** `0273042`
 
 ### Additions
 
-**3. The home page's own link row gained Zernio** (`src/index.tsx`, `86296ed`). The plan only asked for `NAV`; leaving the two lists disagreeing is the kind of small inconsistency that reads as a half-finished feature.
+**3. The home page's own link row gained Zernio** (`src/index.tsx`, `31a2eff`). The plan only asked for `NAV`; leaving the two lists disagreeing is the kind of small inconsistency that reads as a half-finished feature.
 
 ## Issues Encountered
 

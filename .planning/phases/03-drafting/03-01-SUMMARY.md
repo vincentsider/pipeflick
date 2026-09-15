@@ -74,8 +74,8 @@ completed: 2026-09-15
 
 TDD cycle for the single feature in this plan:
 
-1. **RED: failing tests** — `88ad0b4` (test) — 24 cases across 8 describes; suite failed with `Cannot find module '../src/prompts'` while the existing 10 speaker-filter tests kept passing
-2. **GREEN: implementation** — `01f551d` (feat) — `src/prompts.ts`; 34/34 tests pass, `tsc --noEmit` exit 0
+1. **RED: failing tests** — `ad8440e` (test) — 24 cases across 8 describes; suite failed with `Cannot find module '../src/prompts'` while the existing 10 speaker-filter tests kept passing
+2. **GREEN: implementation** — `0c90479` (feat) — `src/prompts.ts`; 34/34 tests pass, `tsc --noEmit` exit 0
 3. **REFACTOR** — skipped, nothing warranted changing (see Decisions Made)
 
 **Plan metadata:** see the `docs(03-01)` commit following this summary.

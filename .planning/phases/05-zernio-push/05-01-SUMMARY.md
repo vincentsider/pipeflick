@@ -72,8 +72,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Zernio client with a draft-only request builder** - `dfd1d11` (feat)
-2. **Task 2: Pin the publish-safety property with a test** - `0980cf8` (test)
+1. **Task 1: Zernio client with a draft-only request builder** - `34930d3` (feat)
+2. **Task 2: Pin the publish-safety property with a test** - `0c700ab` (test)
 
 **Plan metadata:** see the `docs(05-01)` commit following this summary.
 

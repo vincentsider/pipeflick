@@ -78,8 +78,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: The approved_posts block, its instructions, and the tests that pin them** — `9bc18af` (feat)
-2. **Task 2: Read the approved posts at the call site, and deploy the phase** — `9699341` (feat)
+1. **Task 1: The approved_posts block, its instructions, and the tests that pin them** — `d69581a` (feat)
+2. **Task 2: Read the approved posts at the call site, and deploy the phase** — `aaf5241` (feat)
 3. **Task 3: Human verification of the approval gate on production** — checkpoint, approved by the user; no code, no commit
 
 **Plan metadata:** see the `docs(04-03)` commit following this summary.

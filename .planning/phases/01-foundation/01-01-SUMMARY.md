@@ -71,9 +71,9 @@ completed: 2026-09-14
 
 Each task was committed atomically:
 
-1. **Task 1: Scaffold the Hono Worker project** - `42848cb` (feat)
-2. **Task 2: Create the D1 database, first migration and settings helpers** - `78e57a3` (feat)
-3. **Task 3: First deploy to workers.dev** - `47a935c` (docs)
+1. **Task 1: Scaffold the Hono Worker project** - `8c883bb` (feat)
+2. **Task 2: Create the D1 database, first migration and settings helpers** - `e647db2` (feat)
+3. **Task 3: First deploy to workers.dev** - `bfb5eb7` (docs)
 
 **Plan metadata:** see final commit (docs: complete plan)
 
@@ -115,7 +115,7 @@ Each task was committed atomically:
 - **Fix:** Added `"lib": ["ES2022"]` and `"skipLibCheck": true` to `tsconfig.json`
 - **Files modified:** tsconfig.json
 - **Verification:** `npm run check` exits 0
-- **Committed in:** 42848cb (part of task commit)
+- **Committed in:** 8c883bb (part of task commit)
 
 **2. [Rule 1 - Bug] Inline CSS was HTML-escaped inside `<style>`**
 - **Found during:** Task 1 (local curl of GET /)
@@ -123,7 +123,7 @@ Each task was committed atomically:
 - **Fix:** Render the style block with `dangerouslySetInnerHTML`
 - **Files modified:** src/layout.tsx
 - **Verification:** local and remote bodies contain the unescaped `"Segoe UI"`
-- **Committed in:** 42848cb (part of task commit)
+- **Committed in:** 8c883bb (part of task commit)
 
 ---
 

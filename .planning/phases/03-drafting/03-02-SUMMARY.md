@@ -78,10 +78,10 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Migration 0003 — runs, outliers and drafts** — `8498a59` (feat)
-2. **Task 2: Run and job helpers in src/db.ts** — `39f7974` (feat)
-3. **Task 3: OpenAI Responses client** — `1f12349` (feat)
-4. **Interface alignment for 03-04** — `2137655` (refactor)
+1. **Task 1: Migration 0003 — runs, outliers and drafts** — `6d5a626` (feat)
+2. **Task 2: Run and job helpers in src/db.ts** — `4cba6a5` (feat)
+3. **Task 3: OpenAI Responses client** — `289ba11` (feat)
+4. **Interface alignment for 03-04** — `6193380` (refactor)
 
 ## Files Created/Modified
 
@@ -177,7 +177,7 @@ Every message is either OpenAI's own text or one of a fixed set of strings in th
 - **Fix:** Added `grounded INTEGER` (nullable, 1 when every source line was found in the transcript) next to `source_lines_json`. `getRunView` maps it to `boolean | null` for the page.
 - **Files modified:** `migrations/0003_runs.sql`, `src/db.ts`
 - **Verification:** Both databases accept `UPDATE drafts SET ... grounded = 1`; the finished draft row read back with `grounded` set.
-- **Committed in:** `8498a59` (Task 1 commit)
+- **Committed in:** `6d5a626` (Task 1 commit)
 
 **2. [Rule 1 - Bug] Claim guard extended to `started_at`**
 - **Found during:** Task 2 (job helpers)
@@ -185,7 +185,7 @@ Every message is either OpenAI's own text or one of a fixed set of strings in th
 - **Fix:** Added `AND started_at IS ?4`, bound to the exact value read. NULL-safe via `IS`, so pending rows still match.
 - **Files modified:** `src/db.ts`
 - **Verification:** Double-claim against remote D1 — first `changes=1`, second `changes=0`, `attempts` stayed at 1.
-- **Committed in:** `39f7974` (Task 2 commit)
+- **Committed in:** `4cba6a5` (Task 2 commit)
 
 **3. [Rule 2 - Missing Critical] `JSON.parse` and success-body reads wrapped**
 - **Found during:** Task 3 (OpenAI client)
@@ -193,7 +193,7 @@ Every message is either OpenAI's own text or one of a fixed set of strings in th
 - **Fix:** Both wrapped; they raise `OpenAIError` with codes `bad_json` and `bad_body`, both retryable. The underlying parse error is dropped because it quotes the response text.
 - **Files modified:** `src/openai.ts`
 - **Verification:** `tsc --noEmit` exits 0; every exit path from `callStructured` is either a value or an `OpenAIError`.
-- **Committed in:** `1f12349` (Task 3 commit)
+- **Committed in:** `289ba11` (Task 3 commit)
 
 **4. [Rule 3 - Blocking] `usage` parameter shape aligned with the client**
 - **Found during:** Task 3 (after reading 03-04's step-route spec)
@@ -201,7 +201,7 @@ Every message is either OpenAI's own text or one of a fixed set of strings in th
 - **Fix:** `TokenUsage` is now the structural OpenAI shape and `toUsageJson` flattens it internally. `src/db.ts` still imports nothing from `src/openai.ts`.
 - **Files modified:** `src/db.ts`
 - **Verification:** A throwaway module importing both and calling `finishOutlier(db, job.id, value, usage)` type-checked at exit 0, then was deleted.
-- **Committed in:** `2137655`
+- **Committed in:** `6193380`
 
 ### Additions beyond the plan's export list
 

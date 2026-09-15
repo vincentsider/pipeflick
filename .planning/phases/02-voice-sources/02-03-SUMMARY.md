@@ -79,8 +79,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Fireflies GraphQL client** — `ee7c392` (feat)
-2. **Task 2: Import routes, mount, deploy** — `294a2bc` (feat)
+1. **Task 1: Fireflies GraphQL client** — `8f778f0` (feat)
+2. **Task 2: Import routes, mount, deploy** — `4c9ed4b` (feat)
 3. **Task 3: Human verification of a real import** — checkpoint, approved by the user; no commit
 
 **Deployed version:** `f20df031-5ab9-413d-abbe-07c7d1b7be84`
@@ -111,7 +111,7 @@ completed: 2026-09-15
 - **Fix:** Added `.notice.error` (red tint and left border) and `.speakers` list spacing to the existing CSS block. No markup, route or behaviour change anywhere else.
 - **Files modified:** `src/layout.tsx`
 - **Verification:** `tsc --noEmit` exits 0; pages render; every other view is byte-identical in behaviour.
-- **Committed in:** `294a2bc` (Task 2 commit)
+- **Committed in:** `4c9ed4b` (Task 2 commit)
 
 ---
 

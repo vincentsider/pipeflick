@@ -75,11 +75,11 @@ completed: 2026-09-14
 
 Each task was committed atomically:
 
-1. **Task 1: Health route with DB round-trip and secret presence** - `1319e30` (feat)
-2. **Task 2: secrets:push script and secret workflow docs** - `8db7209` (chore)
-3. **Task 2 (deviation): Replace Metricool secret with ZERNIO_USER_TOKEN** - `27043c0` (refactor)
+1. **Task 1: Health route with DB round-trip and secret presence** - `618477a` (feat)
+2. **Task 2: secrets:push script and secret workflow docs** - `5a7a1b5` (chore)
+3. **Task 2 (deviation): Replace Metricool secret with ZERNIO_USER_TOKEN** - `df39bb0` (refactor)
 4. **Task 2: Push secrets and deploy** - no commit (no tracked file changed; secrets are not in git)
-5. **Task 2: Record Zernio decision in STATE.md** - `fa38bb1` (docs)
+5. **Task 2: Record Zernio decision in STATE.md** - `ea83831` (docs)
 6. **Task 3: Human-verify checkpoint** - approved by the user; no commit
 
 **Plan metadata:** see the final `docs(01-03)` commit
@@ -111,7 +111,7 @@ Each task was committed atomically:
 - **Fix:** Renamed in `src/env.ts`, `.dev.vars.example`, `CLAUDE.md` (secrets section and out-of-scope scheduler sentence). `src/health.tsx` needed no edit because it renders from `SECRET_NAMES`. `git grep -i metricool -- . ':!.planning'` finds nothing
 - **Files modified:** src/env.ts, .dev.vars.example, CLAUDE.md
 - **Verification:** `npm run check` passes; `wrangler secret list` shows `ZERNIO_USER_TOKEN`; health page shows it as set
-- **Committed in:** `27043c0`
+- **Committed in:** `df39bb0`
 
 ---
 

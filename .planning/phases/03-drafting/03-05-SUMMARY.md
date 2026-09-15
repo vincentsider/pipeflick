@@ -69,9 +69,9 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **RED — failing tests for whole-post grounding** — `5d687b3` (test)
-2. **GREEN — `checkGrounding` over the whole post** — `12d4c2a` (feat)
-3. **Calibration against production run 1** — `3394741` (docs)
+1. **RED — failing tests for whole-post grounding** — `15c9e90` (test)
+2. **GREEN — `checkGrounding` over the whole post** — `0568bd1` (feat)
+3. **Calibration against production run 1** — `8ff671d` (docs)
 
 No REFACTOR commit: the GREEN implementation needed no clean-up pass.
 
@@ -134,13 +134,13 @@ Two additions beyond the written plan, both inside the owned files:
 - **Found during:** Task 3 (calibration)
 - **Issue:** The plan required the SUMMARY to state that a short invented sentence said once is skipped, not caught. Prose in a SUMMARY drifts; Phase 3 already failed once by over-claiming what a grounding check meant.
 - **Fix:** Added a test asserting that a two-token fabricated sentence lands in `skipped` and leaves the post `grounded: true`, so the limitation is enforced rather than described.
-- **Committed in:** `3394741`
+- **Committed in:** `8ff671d`
 
 **2. [Rule 2 — Missing Critical] The words-not-meaning limit documented in the source**
 - **Found during:** Task 3 (calibration)
 - **Issue:** Calibration showed most unsupported sentences on real drafts are the model compressing a genuine transcript idea into its own vocabulary, not fabricating. A future reader seeing `unsupported: 12` would otherwise conclude the draft is 12 lies.
 - **Fix:** Stated in `checkGrounding`'s doc comment that this matches words, not meaning, and that `unsupported` is a list a reviewer reads rather than a count they act on.
-- **Committed in:** `3394741`
+- **Committed in:** `8ff671d`
 
 **Total deviations:** 2 auto-fixed (both Rule 2). **Impact:** no scope creep — both are documentation and test hardening inside the two files this plan owns.
 

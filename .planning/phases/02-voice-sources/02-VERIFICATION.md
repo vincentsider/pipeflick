@@ -102,7 +102,7 @@ No stub patterns found. The only `placeholder` match is the word inside an expla
 - `npm test` → **10/10 pass** (1 file, 98ms).
 - `npm run check` (`wrangler types && tsc --noEmit`) → **exit 0**.
 - Deployed anonymous GETs: `/` `/fireflies` `/sources` `/settings` `/health` → **302** to `your-team.cloudflareaccess.com`. Access gate intact on every route; no authentication attempted.
-- Deployment timeline confirms the deployed bundle contains this code: last source write 06:50:42Z, deployed version `f20df031` created 06:51:31Z, final commit `294a2bc` at 06:51:52Z. `git diff HEAD` over `src/ migrations/ test/ package.json vitest.config.ts` is empty, so working tree = HEAD = deployed.
+- Deployment timeline confirms the deployed bundle contains this code: last source write 06:50:42Z, deployed version `f20df031` created 06:51:31Z, final commit `4c9ed4b` at 06:51:52Z. `git diff HEAD` over `src/ migrations/ test/ package.json vitest.config.ts` is empty, so working tree = HEAD = deployed.
 - Remote D1: `d1_migrations` = [0001, 0002]; tables `settings`, `transcripts`, `voice_samples` present. Local D1: same migrations applied.
 
 ### Anti-Patterns Found

@@ -134,7 +134,7 @@ its own scope.
 - `npm test` → **57/57 passed**, 2 files (was 34 at last verification; three `isGrounded` tests correctly deleted).
 - `npm run check` → `wrangler types` regenerated, `tsc --noEmit` **exit 0**.
 - Working tree clean apart from pre-existing untracked `logs/` and `prd.md`.
-- Deployed version `f17cf55d` was cut at `116f4ef`; the only commit after it is docs-only, so deployed code matches HEAD.
+- Deployed version `f17cf55d` was cut at `330ca88`; the only commit after it is docs-only, so deployed code matches HEAD.
 
 No TODO, FIXME, placeholder or "not implemented" markers in any phase-3 file.
 

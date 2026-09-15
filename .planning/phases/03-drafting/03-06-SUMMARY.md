@@ -72,9 +72,9 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Migration 0004 — coverage counts and a grounding slot** — `43246f1` (feat)
-2. **Task 2: Store the coverage and expose it to the views** — `107bac8` (feat)
-3. **Task 3: Compute it at run creation, show it before and after** — `7e41764` (feat)
+1. **Task 1: Migration 0004 — coverage counts and a grounding slot** — `09d4adf` (feat)
+2. **Task 2: Store the coverage and expose it to the views** — `75d37e5` (feat)
+3. **Task 3: Compute it at run creation, show it before and after** — `acf51cf` (feat)
 
 **Plan metadata:** see the `docs(03-06)` commit following this summary.
 

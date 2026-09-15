@@ -74,8 +74,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Migration 0006 — push state on drafts** — `114b0b4` (feat)
-2. **Task 2: Push writes and push state on the run read** — `3a02716` (feat)
+1. **Task 1: Migration 0006 — push state on drafts** — `750c283` (feat)
+2. **Task 2: Push writes and push state on the run read** — `c5d6644` (feat)
 
 **Plan metadata:** see the `docs(05-02)` commit following this summary.
 

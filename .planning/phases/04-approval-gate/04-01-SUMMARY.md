@@ -75,8 +75,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Migration 0005 — decision, final text and timestamp on drafts** — `d1fe1e2` (feat)
-2. **Task 2: Decision write, approved-post read, and decisions in the run views** — `82734c1` (feat)
+1. **Task 1: Migration 0005 — decision, final text and timestamp on drafts** — `a4b26d2` (feat)
+2. **Task 2: Decision write, approved-post read, and decisions in the run views** — `3113e2a` (feat)
 
 **Plan metadata:** see the `docs(04-01)` commit following this summary.
 

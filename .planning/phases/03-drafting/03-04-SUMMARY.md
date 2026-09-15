@@ -80,9 +80,9 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: The step route — one claim, one OpenAI call** — `8433e35` (feat)
-2. **Task 2: Auto-advance and retry** — `feb314f` (feat)
-3. **Deviation: warn when a run would start with no voice samples** — `75ef4a6` (feat)
+1. **Task 1: The step route — one claim, one OpenAI call** — `e6b363d` (feat)
+2. **Task 2: Auto-advance and retry** — `160aa34` (feat)
+3. **Deviation: warn when a run would start with no voice samples** — `101c820` (feat)
 4. **Task 3: Deploy** — no files; versions `671bf3fd-1628-4554-8be5-7eb7dc8dfa5a` then `b3156846-e6bb-4e4a-a14a-ad45b629406b`
 
 ## Files Created/Modified
@@ -184,7 +184,7 @@ Run context, for anyone reproducing these numbers: 3 voice samples (7,447 charac
 - **Fix:** `scrubKey` replaces every `sk-[A-Za-z0-9_*-]+` run with "the configured key" before the message reaches D1. Applied in the step route's catch.
 - **Files modified:** `src/runs.tsx`
 - **Verification:** The next failure stored `Incorrect API key provided: the configured key. You can find your API key at…`
-- **Committed in:** `8433e35`
+- **Committed in:** `e6b363d`
 
 **2. [Rule 1 - Bug] `runs.status` was written once and never maintained**
 - **Found during:** Task 1
@@ -192,7 +192,7 @@ Run context, for anyone reproducing these numbers: 3 voice samples (7,447 charac
 - **Fix:** `runStatus` derives the value from the job statuses; `reconcileRunStatus` writes it after every step, reusing the view the drafting branch already reads. Costs at most one extra query, and only when the status actually moved.
 - **Files modified:** `src/runs.tsx`
 - **Verification:** The production run's `runs.status` is `done`.
-- **Committed in:** `8433e35`
+- **Committed in:** `e6b363d`
 
 **3. [Rule 2 - Missing Critical] A deleted transcript would have crashed the drafting branch**
 - **Found during:** Task 1
@@ -200,7 +200,7 @@ Run context, for anyone reproducing these numbers: 3 voice samples (7,447 charac
 - **Fix:** Explicit null check that fails the job with `transcript_missing` and a plain-English message, **before** any OpenAI call. Not in `RETRYABLE_ERROR_CODES`, so the run halts rather than failing five more steps identically.
 - **Files modified:** `src/runs.tsx`
 - **Verification:** Deleted the local transcript mid-run; draft 3 reached `failed` with `error_code = transcript_missing` and no request was made.
-- **Committed in:** `8433e35`
+- **Committed in:** `e6b363d`
 
 **4. [Rule 1 - Bug] Two-tab redirect loop in the auto-advance guard**
 - **Found during:** Task 2
@@ -208,7 +208,7 @@ Run context, for anyone reproducing these numbers: 3 voice samples (7,447 charac
 - **Fix:** `planAdvance` returns `inFlight`, and `auto` requires `!inFlight`. The form still renders as a plain button, with a hint naming the 3-minute takeover window.
 - **Files modified:** `src/runs.tsx`
 - **Verification:** Page state E — a `running` job renders the button and no `setTimeout`.
-- **Committed in:** `feb314f`
+- **Committed in:** `160aa34`
 
 **5. [Rule 2 - Missing Critical] No warning when a run would start with no voice samples**
 - **Found during:** Pre-checkpoint inspection of production D1
@@ -216,7 +216,7 @@ Run context, for anyone reproducing these numbers: 3 voice samples (7,447 charac
 - **Fix:** The new-run form warns and links to `/sources` when the count is zero, and reports the count when it is not. Not a hard block.
 - **Files modified:** `src/runs.tsx`
 - **Verification:** The user saved 3 samples before running; the drafting inputs show ~4,790 tokens, consistent with samples plus the capped transcript.
-- **Committed in:** `75ef4a6`
+- **Committed in:** `101c820`
 
 **Total deviations:** 5 auto-fixed (2 bugs, 3 missing-critical). No architectural changes, no schema changes, no new dependencies. Every one was inside `src/runs.tsx`, the plan's single declared file.
 

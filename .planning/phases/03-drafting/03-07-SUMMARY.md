@@ -81,8 +81,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Store the report, retire the proxy** — `ee26339` (feat)
-2. **Task 2: Call it on the whole post, render what it found** — `116f4ef` (feat)
+1. **Task 1: Store the report, retire the proxy** — `dea4cc5` (feat)
+2. **Task 2: Call it on the whole post, render what it found** — `330ca88` (feat)
 3. **Task 3: Deploy** — no commit; changed no files. Version `f17cf55d-e6e8-4b04-bbaf-600fba5e7c93`, 100% of traffic
 4. **Task 4: Human verification** — checkpoint, approved (see below)
 
@@ -146,7 +146,7 @@ Scope held to the plan's four files plus one line in `src/openai.ts`. Four addit
 - **Change:** `TokenUsage` gains `input_tokens_details?: { cached_tokens?: number }`, `toUsageJson` records it, and `src/openai.ts`'s `Usage` gains the same field.
 - **Why `src/openai.ts` was touched** (outside the plan's `files_modified`): without it the field would have been read at runtime while the type said it did not exist. It worked either way — the value passed is raw parsed JSON — but relying on that is how a type stops describing reality. One field, one comment.
 - **Note for the reader:** rows written before this commit have no `cached_tokens` key. Absence means unknown, not zero cache hits. 03-04's "eligible but unproven" caching note can be settled on the next run.
-- **Committed in:** `ee26339`
+- **Committed in:** `dea4cc5`
 
 **2. [Judgement call] The panel renders below the post, not above it**
 
@@ -162,7 +162,7 @@ Scope held to the plan's four files plus one line in `src/openai.ts`. Four addit
 - **Issue:** The plan's three states are driven by `unsupported` and `repeated` only. But `checkGrounding` computes `grounded = citationsResolved && unsupported.length === 0 && repeated.length === 0`. A draft whose citations do not resolve while every sentence traces cleanly would have stored `grounded = 0` and rendered the clean "Traced N of N" message — the page contradicting the verdict beside it in D1, which is the exact class of fault this plan exists to remove.
 - **Fix:** When `citationsResolved` is false, an amber line says so: *"The quotes this draft reported building on were not found in your own words."* It is a distinct fact from an untraceable sentence — it is about the lines the model chose to report — so it renders whenever false, not only when nothing else is flagged.
 - **Likelihood:** low. On run 1, citations resolved 3/3 on all three drafts after 03-05's normalisation. This is a hole closed before it was fallen into, not an observed failure.
-- **Committed in:** `116f4ef`
+- **Committed in:** `330ca88`
 
 **Minor wording change:** the plan's two label sentences are singular (*"This phrase is repeated…"*). Both lists can hold up to five entries, so each label pluralises on count.
 

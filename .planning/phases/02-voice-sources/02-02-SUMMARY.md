@@ -78,11 +78,11 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Migration 0002 and typed D1 helpers** — `566c5f8` (feat)
-2. **Task 2: Speaker-name settings page** — `3899ce3` (feat)
-3. **Task 3: Sources view, paste samples, transcript detail, nav** — `be7648b` (feat)
+1. **Task 1: Migration 0002 and typed D1 helpers** — `19d108f` (feat)
+2. **Task 2: Speaker-name settings page** — `7df99df` (feat)
+3. **Task 3: Sources view, paste samples, transcript detail, nav** — `e011b20` (feat)
 
-_Commits `7c3295b` and `c581fb2` interleaved in the log belong to plan 02-01, executed in parallel by another agent._
+_Commits `d81012d` and `0e9753b` interleaved in the log belong to plan 02-01, executed in parallel by another agent._
 
 ## Files Created/Modified
 

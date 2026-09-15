@@ -70,8 +70,8 @@ completed: 2026-09-15
 
 TDD cycle for the single feature in this plan:
 
-1. **RED: failing tests + framework** — `7c3295b` (test) — vitest devDependency, `test` script, `vitest.config.ts`, 10 cases; suite failed with `Cannot find module '../src/speaker-filter'`
-2. **GREEN: implementation** — `c581fb2` (feat) — `src/speaker-filter.ts`; 10/10 tests pass
+1. **RED: failing tests + framework** — `d81012d` (test) — vitest devDependency, `test` script, `vitest.config.ts`, 10 cases; suite failed with `Cannot find module '../src/speaker-filter'`
+2. **GREEN: implementation** — `0e9753b` (feat) — `src/speaker-filter.ts`; 10/10 tests pass
 3. **REFACTOR** — skipped, no change was warranted (see Decisions Made)
 
 **Plan metadata:** see the `docs(02-01)` commit following this summary.

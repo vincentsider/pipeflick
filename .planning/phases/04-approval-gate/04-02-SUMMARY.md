@@ -75,8 +75,8 @@ completed: 2026-09-15
 
 ## Task Commits
 
-1. **Task 1: Decision controls under each draft, and the route that records them** — `2bac73b` (feat)
-2. **Task 2: The decision on each draft, in the run list** — `ec0199e` (feat)
+1. **Task 1: Decision controls under each draft, and the route that records them** — `020aea0` (feat)
+2. **Task 2: The decision on each draft, in the run list** — `f7af26a` (feat)
 
 **Plan metadata:** see the `docs(04-02)` commit following this summary.
 
