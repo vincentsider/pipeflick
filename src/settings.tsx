@@ -18,7 +18,7 @@ settings.get("/settings", async (c) => {
   const saved = c.req.query("saved") === "1";
 
   return c.html(
-    <Layout title="Pipeflick settings">
+    <Layout title="Pipeflick settings" path={c.req.path}>
       <h2>Settings</h2>
       {saved ? <p class="notice">Saved.</p> : ""}
       <form method="post" action="/settings">

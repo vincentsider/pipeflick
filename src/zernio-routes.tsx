@@ -28,7 +28,7 @@ const ACCOUNT_ID_PATTERN = /^[a-f0-9]{24}$/i;
 
 function ErrorPage({ children }: { children: string }) {
   return (
-    <Layout title="Pipeflick — Zernio">
+    <Layout title="Pipeflick — Zernio" path="/zernio">
       <h2>Zernio</h2>
       <p class="notice error">{children}</p>
       <p>
@@ -41,7 +41,7 @@ function ErrorPage({ children }: { children: string }) {
 /** A 401 means the secret is set and wrong, which is a different afternoon. */
 function BadKeyPage({ error }: { error: ZernioError }) {
   return (
-    <Layout title="Pipeflick — Zernio">
+    <Layout title="Pipeflick — Zernio" path="/zernio">
       <h2>Zernio</h2>
       <p class="notice error">{`Zernio connection failed: ${error.message} (code ${error.code})`}</p>
       <p class="notice error">
@@ -115,7 +115,7 @@ function ConnectionPage({
   const stored = accounts.find((account) => account.id === storedId) ?? null;
 
   return (
-    <Layout title="Pipeflick — Zernio">
+    <Layout title="Pipeflick — Zernio" path="/zernio">
       <h2>Zernio</h2>
 
       {saved ? <p class="notice">Saved.</p> : ""}

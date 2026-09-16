@@ -56,7 +56,7 @@ app.route("/", runs);
 // own front door moved here; `src/layout.tsx` points Home at it.
 app.get("/app", (c) =>
   c.html(
-    <Layout title="Pipeflick">
+    <Layout title="Pipeflick" path={c.req.path}>
       <p>Pipeflick is running.</p>
       <p>Signed in as {c.get("email")}</p>
       <p>

@@ -45,7 +45,7 @@ export const health = new Hono<AppEnv>();
 health.get("/health", async (c) => {
   const result = await runHealth(c);
   return c.html(
-    <Layout title="Pipeflick health">
+    <Layout title="Pipeflick health" path={c.req.path}>
       <h2>Health</h2>
       <table>
         <thead>

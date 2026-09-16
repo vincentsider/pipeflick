@@ -40,7 +40,7 @@ function formatDate(isoDate: string): string {
 
 function ErrorPage({ title, children }: { title: string; children: string }) {
   return (
-    <Layout title="Pipeflick — Fireflies">
+    <Layout title="Pipeflick — Fireflies" path="/fireflies">
       <h2>{title}</h2>
       <p class="notice error">{children}</p>
       <p>
@@ -95,7 +95,7 @@ function ImportPreview({
   error?: string;
 }) {
   return (
-    <Layout title={`Pipeflick — import ${meeting.title}`}>
+    <Layout title={`Pipeflick — import ${meeting.title}`} path="/fireflies">
       <h2>{meeting.title}</h2>
       <p class="hint">{`${formatDate(meeting.dateIso)} · ${meeting.durationMinutes} min`}</p>
 
@@ -167,7 +167,7 @@ fireflies.get("/fireflies", async (c) => {
   }
 
   return c.html(
-    <Layout title="Pipeflick — Fireflies">
+    <Layout title="Pipeflick — Fireflies" path="/fireflies">
       <h2>Fireflies</h2>
       <p class="notice">{`Connected as ${user.name} (${user.email})`}</p>
 

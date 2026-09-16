@@ -62,9 +62,15 @@ import { createLinkedInDraft, MAX_LINKEDIN_CHARS, ZernioError } from "./zernio";
  * run needs 2 or 3 outliers (`createRun` throws outside that range, so this
  * route validates before calling it).
  */
-const OUTLIER_FIELDS = ["outlier1", "outlier2", "outlier3"] as const;
-const MIN_OUTLIERS = 2;
-const MAX_OUTLIERS = OUTLIER_FIELDS.length;
+/**
+ * The `POST /runs` field names and bounds. Exported because `/sources` also
+ * starts a run — the design puts the transcript picker, the outliers and the
+ * "Draft three posts" button on one screen — and both forms must agree with
+ * this handler. One definition, two call sites.
+ */
+export const OUTLIER_FIELDS = ["outlier1", "outlier2", "outlier3"] as const;
+export const MIN_OUTLIERS = 2;
+export const MAX_OUTLIERS = OUTLIER_FIELDS.length;
 
 /** Fireflies transcript ids, matching the guard in src/sources.tsx. */
 const TRANSCRIPT_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
@@ -1064,7 +1070,7 @@ async function reconcileRunStatus(
 /** No key, no call. Mirrors the missing-key guard in src/fireflies-routes.tsx. */
 function NotConfigured() {
   return (
-    <Layout title="Pipeflick — not configured">
+    <Layout title="Pipeflick — not configured" path="/runs">
       <h2>Run</h2>
       <p class="notice error">
         OPENAI_API_KEY is not set, so this step could not run. Nothing was sent.
@@ -1083,7 +1089,7 @@ function NotConfigured() {
  */
 function ZernioNotConfigured() {
   return (
-    <Layout title="Pipeflick — not configured">
+    <Layout title="Pipeflick — not configured" path="/runs">
       <h2>Push to Zernio</h2>
       <p class="notice error">
         ZERNIO_USER_TOKEN is not set, so nothing was sent to Zernio and this draft is unchanged.
@@ -1101,7 +1107,7 @@ runs.get("/runs", async (c) => {
   const rows = await listRuns(c.env.DB);
 
   return c.html(
-    <Layout title="Pipeflick runs">
+    <Layout title="Pipeflick runs" path="/runs">
       <h2>Runs</h2>
       <p>
         <a href="/runs/new">Start a run</a>
@@ -1116,7 +1122,7 @@ runs.get("/runs/new", async (c) => {
   const samples = await listVoiceSamples(c.env.DB);
 
   return c.html(
-    <Layout title="Pipeflick — new run">
+    <Layout title="Pipeflick — new run" path="/runs">
       <h2>New run</h2>
       <NewRunForm transcripts={transcripts} sampleCount={samples.length} />
       <p>
@@ -1190,7 +1196,7 @@ runs.get("/runs/:id", async (c) => {
   const pushTarget = accountId === "" ? null : accountLabel || accountId;
 
   return c.html(
-    <Layout title={`Pipeflick run — ${title}`}>
+    <Layout title={`Pipeflick run — ${title}`} path="/runs">
       <h2>Run</h2>
       <p class="hint">{`${title} · started ${formatDateTime(view.run.created_at)}`}</p>
       <p>

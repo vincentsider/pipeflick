@@ -1,41 +1,21 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
+import { ALL_CSS, FONT_HREF } from "./theme";
 
-const css = `
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    max-width: 720px;
-    margin: 2rem auto;
-    padding: 0 1rem;
-    line-height: 1.5;
-    color: #1a1a1a;
-  }
-  header { border-bottom: 1px solid #ddd; margin-bottom: 1.5rem; padding-bottom: 0.5rem; }
-  header h1 { margin: 0; font-size: 1.5rem; }
-  nav ul { list-style: none; display: flex; gap: 1rem; margin: 0.5rem 0 0; padding: 0; }
-  nav a { color: #0b5; text-decoration: none; }
-  nav a:hover { text-decoration: underline; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; }
-  th { font-weight: 600; }
-  .notice { background: #eefaf1; border-left: 3px solid #0b5; padding: 0.4rem 0.6rem; }
-  .notice.error { background: #fdeded; border-left-color: #c0392b; }
-  .notice.warn { background: #fdf6e3; border-left-color: #b8860b; }
-  .hint { color: #666; font-size: 0.9rem; }
-  textarea { width: 100%; font: inherit; }
-  .samples { list-style: none; padding: 0; }
-  .samples li { border-bottom: 1px solid #eee; padding: 0.6rem 0; }
-  .sample-body, .transcript-body p, .draft-body { white-space: pre-wrap; }
-  .status { text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.04em; color: #666; }
-  .status-done { color: #0b5; }
-  .status-running { color: #b8860b; }
-  .status-failed { color: #c0392b; }
-  .steps { list-style: none; padding: 0; }
-  .steps li { border-bottom: 1px solid #eee; padding: 0.5rem 0; }
-  .draft { border: 1px solid #eee; padding: 0.6rem 0.8rem; margin: 0.8rem 0; }
-  .draft h4 { margin: 0 0 0.3rem; }
-  .speakers { list-style: none; padding: 0; }
-  .speakers li { padding: 0.2rem 0; }
-`;
+/**
+ * The app shell, on the Broadsheet design system (design/README.md, "App
+ * shell"): sticky blurred header, brand + Pilot tag, the tab group, a status
+ * crumb and the avatar.
+ *
+ * The prop signature is unchanged from the first version of this file on
+ * purpose. Seven screens render as `<Layout title="…">…</Layout>`, and the
+ * point of this rewrite was to restyle all of them without editing any of
+ * them. `crumb` is the only addition and it is optional.
+ *
+ * The handoff's shell shows three tabs because the prototype had three
+ * screens. This app has more routes than the prototype, and dropping the rest
+ * to match a mockup would have removed working features, so the tab group
+ * carries the app's real sections in the design's treatment.
+ */
 
 const NAV = [
   // `/` is the public landing page; the app's home is behind the gate at /app.
@@ -49,28 +29,76 @@ const NAV = [
   { href: "/health", label: "Health" },
 ];
 
-export const Layout: FC<PropsWithChildren<{ title: string }>> = ({ title, children }) => (
-  <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>{title}</title>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
-    </head>
-    <body>
-      <header>
-        <h1>Pipeflick</h1>
-        <nav>
-          <ul>
-            {NAV.map((item) => (
-              <li>
-                <a href={item.href}>{item.label}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </header>
-      <main>{children}</main>
-    </body>
-  </html>
-);
+/**
+ * Which tab reads as current. Longest matching prefix wins, so
+ * `/runs/<id>` marks Runs and `/sources/transcripts/<id>` marks Sources.
+ * `/app` matches only itself — every path starts with `/`.
+ */
+function currentHref(path: string): string {
+  let best = "";
+  for (const item of NAV) {
+    if (path === item.href || path.startsWith(`${item.href}/`)) {
+      if (item.href.length > best.length) best = item.href;
+    }
+  }
+  return best;
+}
+
+export type LayoutProps = PropsWithChildren<{
+  title: string;
+  /** Right-hand status text, e.g. "Run in progress" or "2 of 3 decided". */
+  crumb?: string;
+  /** Path used to mark the current tab; defaults to no tab marked. */
+  path?: string;
+}>;
+
+export const Layout: FC<LayoutProps> = ({ title, crumb, path, children }) => {
+  const current = currentHref(path ?? "");
+  return (
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{title}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+        <link rel="stylesheet" href={FONT_HREF} />
+        <style dangerouslySetInnerHTML={{ __html: ALL_CSS }} />
+      </head>
+      <body>
+        <header class="pf-header">
+          <div class="pf-header-in">
+            <div class="pf-brand">
+              <span class="pf-mark" aria-hidden="true">
+                P
+              </span>
+              <span class="pf-wordmark">Pipeflick</span>
+              <span class="tag tag-accent">Pilot</span>
+            </div>
+
+            <nav class="pf-tabs">
+              {NAV.map((item) => (
+                <a
+                  class="pf-tab"
+                  href={item.href}
+                  aria-current={item.href === current ? "page" : undefined}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+
+            <div class="pf-meta">
+              {crumb ? <span class="pf-crumb">{crumb}</span> : ""}
+              <span class="pf-avatar" aria-hidden="true">
+                VS
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <main class="pf-main">{children}</main>
+      </body>
+    </html>
+  );
+};
