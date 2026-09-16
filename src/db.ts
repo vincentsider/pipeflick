@@ -886,3 +886,23 @@ export async function recordPushFailure(
     .run();
   return result.meta.changes === 1;
 }
+
+/* --------------------------------------------------------------------------
+ * Phase 5 landing page (migration 0007): pilot requests from the public form.
+ * ----------------------------------------------------------------------- */
+
+/**
+ * Record a pilot request from the public landing page.
+ *
+ * The only write in this file reachable without Cloudflare Access. The caller
+ * (`src/landing.tsx`) shape-checks and caps the address first; this helper
+ * does not re-validate, in the same way `recordDecision` trusts its route.
+ * Nothing is returned because the page has nothing to say about the row —
+ * a duplicate address is a person asking twice, not a conflict to report.
+ */
+export async function insertPilotRequest(db: D1Database, email: string): Promise<void> {
+  await db
+    .prepare("INSERT INTO pilot_requests (email, created_at) VALUES (?1, ?2)")
+    .bind(email, new Date().toISOString())
+    .run();
+}
