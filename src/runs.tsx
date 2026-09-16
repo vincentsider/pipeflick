@@ -1208,7 +1208,7 @@ function pushFailure(error: unknown): { code: string; message: string } {
       code: PUSH_FAILED,
       message:
         "The push did not complete, so it is not certain whether Zernio received it. " +
-        "Check your Zernio drafts, then press Push to Zernio again — Zernio refuses a " +
+        "Check your Zernio drafts, then press Send to Zernio again — Zernio refuses a " +
         "duplicate of the same text within 24 hours, so this cannot create a second draft.",
     };
   }
