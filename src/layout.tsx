@@ -38,7 +38,8 @@ const css = `
 `;
 
 const NAV = [
-  { href: "/", label: "Home" },
+  // `/` is the public landing page; the app's home is behind the gate at /app.
+  { href: "/app", label: "Home" },
   { href: "/sources", label: "Sources" },
   { href: "/runs", label: "Runs" },
   { href: "/fireflies", label: "Fireflies" },
