@@ -56,6 +56,18 @@ which was correct for the single-user pilot and is deliberately reopened here.
 - [ ] **ACCT-04**: A user sees only their own data; a request naming another account's record answers not-found rather than showing it
 - [ ] **ACCT-05**: Each user connects their own Fireflies and Zernio credentials, stored per account and never shared between accounts
 - [ ] **ACCT-06**: A user can delete their account and everything it owns
+- [ ] **ACCT-07**: An account cannot start a run it has no allowance left for, and can see how many it has
+
+### Payments
+
+Added 2026-09-16 for Phase 7. Paddle is Merchant of Record, so Paddle is the legal seller and
+handles sales tax across markets — the reason this is tractable for a Jersey-based operator.
+
+- [ ] **PAY-01**: A user sees their credit balance and what a run costs before starting one
+- [ ] **PAY-02**: A user can buy credits with a card and their balance rises without anyone intervening
+- [ ] **PAY-03**: A run consumes credits, and a user with too few cannot start one
+- [ ] **PAY-04**: Every credit added or consumed is recorded, so a disputed balance can be answered from data
+- [ ] **PAY-05**: A payment Paddle reports more than once adds credits exactly once
 
 ### Platform
 
@@ -111,7 +123,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Direct LinkedIn posting | LinkedIn restricts it; Zernio is the route |
 | AI-generated infographics and branding | Roadmap, after the text loop works |
 | Human editor touch-up tooling | Roadmap |
-| Multi-client SaaS, billing, onboarding at scale | Pilot proves the loop on one or two people |
+| Multi-client SaaS, billing, onboarding at scale | Pilot proves the loop on one or two people. **Reopened 2026-09-16**: Phase 6 adds invited accounts, Phase 7 adds Paddle credits. Both are deliberate scope changes and neither should start before the pilot answers whether drafts are publishable. |
 | Paid ads, comment management, DM automation | Different product |
 | Platform scraping, fetching LinkedIn posts by URL | Blocked by LinkedIn and non-compliant; paste text instead |
 | Showing or editing extracted templates | User chose to hide them; revisit if drafts are off-voice and hard to diagnose |
@@ -152,6 +164,12 @@ Which phases cover which requirements. Updated by create-roadmap.
 | ACCT-04 | Phase 6 | Pending |
 | ACCT-05 | Phase 6 | Pending |
 | ACCT-06 | Phase 6 | Pending |
+| ACCT-07 | Phase 6 | Pending |
+| PAY-01 | Phase 7 | Pending |
+| PAY-02 | Phase 7 | Pending |
+| PAY-03 | Phase 7 | Pending |
+| PAY-04 | Phase 7 | Pending |
+| PAY-05 | Phase 7 | Pending |
 | PLAT-01 | Phase 1 | Complete |
 | PLAT-02 | Phase 1 | Complete |
 | PLAT-03 | Phase 1 | Complete |

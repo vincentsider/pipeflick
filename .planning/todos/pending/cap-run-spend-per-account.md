@@ -2,6 +2,8 @@
 
 **Raised:** 2026-09-16, out of the Phase 6 registration decision
 **Priority:** Medium — becomes High the moment a second account exists
+**Status: SCHEDULED 2026-09-16.** Option (1), the run allowance, is now plan 06-06. Option (3),
+paid credits via Paddle, is now Phase 7. This todo stays as the reasoning behind both.
 
 ## The gap
 

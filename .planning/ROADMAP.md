@@ -17,7 +17,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Drafting** - Outliers to hidden templates, runs that produce three LinkedIn drafts
 - [x] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
 - [ ] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
-- [ ] **Phase 6: Accounts** - Anyone can register; every row belongs to one account and no one sees another's data
+- [ ] **Phase 6: Accounts** - Invited accounts, every row owned by one of them, and a run allowance
+- [ ] **Phase 7: Paid Credits** - Paddle checkout tops up a credit balance that runs consume
 
 ## Phase Details
 
@@ -129,6 +130,7 @@ Plans:
   4. Each user connects their own Fireflies and Zernio accounts, and no user's imports or pushes can use another user's credentials
   5. The public demo no longer exposes real accounts
   6. A user can delete their account and everything it owns
+  7. An account cannot start a run it has no allowance left for
 **Research**: Likely
 **Research topics**: Cloudflare Access self-registration (one-time PIN to any email) — policy shape, seat limits and cost past the free tier; where per-user third-party credentials should live (encrypted column in D1 vs Workers KV vs Secrets Store) and how they are encrypted at rest; whether `ctx.access` still carries an identity for a self-registered user
 
@@ -138,7 +140,7 @@ Plans:
 - **Third-party keys stop being the operator's.** OpenAI can stay a Worker secret because the operator pays for it. Fireflies and Zernio cannot: another user's meetings live in their Fireflies account and their posts belong in their Zernio. Both must move out of Worker secrets into per-account storage, which reverses the Phase 1 decision that keys live in Worker secrets and never in D1 (PLAT-03). Storing other people's API keys means encrypting them and owning that risk.
 - **Compliance changes category.** The pilot runs on the founder's own data specifically so it is never blocked on third-party consent. The moment another user imports a meeting, the project processes third parties' recordings and becomes a data processor under the Data Protection (Jersey) Law 2018: a privacy notice, a processing agreement, deletion on request, and a defensible answer on Fireflies being US-hosted. That is a prerequisite for letting a real user import a real meeting, not a follow-up.
 
-**Plans**: 6 plans in 4 waves (planned 2026-09-16; the estimate of 4 predates DISCOVERY.md, which separated the migration from the query scoping, and split credential sealing out as a pure TDD module. Three plans run in parallel in wave 1)
+**Plans**: 7 plans in 5 waves (planned 2026-09-16; the estimate of 4 predates DISCOVERY.md, which separated the migration from the query scoping, and split credential sealing out as a pure TDD module. Three plans run in parallel in wave 1)
 
 Plans:
 - [ ] 06-01: Migration 0008 — `owner_email` on the four root tables, backfill to vincent@getinference.com — wave 1
@@ -146,13 +148,44 @@ Plans:
 - [ ] 06-03: Credential sealing, AES-GCM over WebCrypto (TDD, pure) — wave 1
 - [ ] 06-04: Ownership as the WHERE clause — `src/db.ts` and all 45 call sites — wave 2
 - [ ] 06-05: Per-account Fireflies and Zernio credentials, migration 0009 — wave 3
-- [ ] 06-06: Close the public demo, account deletion, deploy and human check — wave 4
+- [ ] 06-06: Per-account run allowance, so an invited account cannot spend without limit — wave 4
+- [ ] 06-07: Close the public demo, account deletion, deploy and human check — wave 5
+
+
+### Phase 7: Paid Credits
+**Goal**: A user buys credits through Paddle and their runs consume them, so the service pays for itself instead of running on the operator's card
+**Depends on**: Phase 6
+**Requirements**: PAY-01, PAY-02, PAY-03, PAY-04, PAY-05
+**Success Criteria** (what must be TRUE):
+  1. A user sees their credit balance and what a run costs before starting one
+  2. A user can buy credits with a card and the balance rises without anyone intervening
+  3. A run consumes credits, and a user with too few cannot start one
+  4. Every credit added or consumed is recorded, so a disputed balance can be answered from data
+  5. A payment that Paddle reports twice adds credits once
+  6. Nothing is charged silently: the price is shown before checkout and a receipt exists after
+**Research**: Complete for the choice (see below); Likely for the integration
+**Research topics**: Paddle Billing one-time prices and the `transaction.completed` webhook shape; webhook signature verification in a Worker (no Node crypto — WebCrypto HMAC); Paddle.js checkout overlay versus a hosted payment link; sandbox versus live environment switching
+
+**Why Paddle and not Stripe.** Paddle is a **Merchant of Record**: Paddle is the legal seller, and handles payments, sales tax and compliance across 300+ markets. A Jersey-based operator selling to executives in other jurisdictions would otherwise have to work out VAT/sales-tax registration per market themselves. That is the single largest reason this phase is tractable at all, and it is why the choice is not a toss-up with Stripe. A credit top-up is a **one-time price** (no recurring interval), which skips Paddle's subscription engine entirely and is fulfilled by the `transaction.completed` webhook.
+
+**Credits are not dollars, and that is deliberate.** Sell "a run costs N credits", never the OpenAI figure. It decouples the user-facing price from OpenAI's, so exercising the quality lever recorded in STATE — swapping `MODEL_DRAFT` to a stronger model — changes the operator's margin and not the customer's price. Pricing in real cost would make every model decision a pricing decision.
+
+**What Phase 6 already built for this.** 06-06's allowance is the same check in cheaper clothing: `assertCanStartRun(db, owner)` is a named seam whose body swaps from "decrement a run" to "decrement a credit balance", and the route does not change. `usage_json` has stored per-call token counts on every job since Phase 3, so metering real cost per account needs a price table and an aggregation, not new instrumentation.
+
+**Three things that are larger than they look:**
+- **Money makes idempotency mandatory.** Webhooks retry. The same `transaction.completed` arriving twice must add credits once, which needs the Paddle transaction id stored and uniquely constrained — not a "have we seen this?" read followed by an insert. This is the one place in the project where getting concurrency wrong costs real money in the customer's favour or the operator's.
+- **Reserve versus settle.** A call's cost is known only after it returns. The engine's one-call-per-invocation shape (03-02/03-04) is a genuine advantage here: checking the balance per step bounds an overdraft to roughly $0.02 rather than a whole run.
+- **Selling changes the legal posture, on top of Phase 6's.** Phase 6 makes the project a data processor. Phase 7 makes it a business taking money: terms of service, refund policy, and a receipt trail. Paddle as MoR absorbs the tax side but not the terms or the refund decisions.
+
+**Do not start this before the pilot has an answer.** Phase 7 monetises drafts good enough for an executive to publish. That is still unproven and untested since run 1. If the answer is no, this is infrastructure for a product that changes underneath it.
+
+**Plans**: 5 plans estimated (not yet planned) — credit ledger and balance; Paddle client and checkout; webhook receiver with idempotency; consumption per step replacing the allowance; balance UI, deploy and human check
 
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -161,4 +194,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Drafting | 7/7 | Complete | 2026-09-15 |
 | 4. Approval Gate | 3/3 | Complete | 2026-09-15 |
 | 5. Zernio Push | 0/4 | Planned | - |
-| 6. Accounts | 0/6 | Planned | - |
+| 6. Accounts | 0/7 | Planned | - |
+| 7. Paid Credits | 0/5 | Not planned | - |
