@@ -138,13 +138,15 @@ Plans:
 - **Third-party keys stop being the operator's.** OpenAI can stay a Worker secret because the operator pays for it. Fireflies and Zernio cannot: another user's meetings live in their Fireflies account and their posts belong in their Zernio. Both must move out of Worker secrets into per-account storage, which reverses the Phase 1 decision that keys live in Worker secrets and never in D1 (PLAT-03). Storing other people's API keys means encrypting them and owning that risk.
 - **Compliance changes category.** The pilot runs on the founder's own data specifically so it is never blocked on third-party consent. The moment another user imports a meeting, the project processes third parties' recordings and becomes a data processor under the Data Protection (Jersey) Law 2018: a privacy notice, a processing agreement, deletion on request, and a defensible answer on Fireflies being US-hosted. That is a prerequisite for letting a real user import a real meeting, not a follow-up.
 
-**Plans**: 4 plans in 3 waves (estimated; not yet planned)
+**Plans**: 6 plans in 4 waves (planned 2026-09-16; the estimate of 4 predates DISCOVERY.md, which separated the migration from the query scoping, and split credential sealing out as a pure TDD module. Three plans run in parallel in wave 1)
 
 Plans:
-- [ ] 06-01: Migration 0008 — `owner_email` on every table, backfill to vincent@getinference.com, ownership-scoped reads and writes in `src/db.ts` — wave 1
-- [ ] 06-02: Access self-registration, and the signed-in identity carried into every route as the owner — wave 1
-- [ ] 06-03: Per-account Fireflies and Zernio credentials, out of Worker secrets and into encrypted per-account storage — wave 2
-- [ ] 06-04: Close or re-scope the public demo, account deletion, deploy and human check — wave 3
+- [ ] 06-01: Migration 0008 — `owner_email` on the four root tables, backfill to vincent@getinference.com — wave 1
+- [ ] 06-02: Access self-registration and the owner identity (decision + human check) — wave 1
+- [ ] 06-03: Credential sealing, AES-GCM over WebCrypto (TDD, pure) — wave 1
+- [ ] 06-04: Ownership as the WHERE clause — `src/db.ts` and all 45 call sites — wave 2
+- [ ] 06-05: Per-account Fireflies and Zernio credentials, migration 0009 — wave 3
+- [ ] 06-06: Close the public demo, account deletion, deploy and human check — wave 4
 
 
 ## Progress
@@ -159,4 +161,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Drafting | 7/7 | Complete | 2026-09-15 |
 | 4. Approval Gate | 3/3 | Complete | 2026-09-15 |
 | 5. Zernio Push | 0/4 | Planned | - |
-| 6. Accounts | 0/4 | Not planned | - |
+| 6. Accounts | 0/6 | Planned | - |
