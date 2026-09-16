@@ -123,7 +123,7 @@ Plans:
 **Depends on**: Phase 5
 **Requirements**: ACCT-01, ACCT-02, ACCT-03, ACCT-04, ACCT-05, ACCT-06
 **Success Criteria** (what must be TRUE):
-  1. A new person reaches the app by entering their own email address, with no one adding them by hand first
+  1. An address the operator adds to the Access invite list can sign in and is treated as its own account, with no code change and no deploy (decided 2026-09-16: invite-list, because every account can spend the operator's OpenAI credit)
   2. Every transcript, voice sample, run, outlier, draft and setting belongs to exactly one account, and every row that existed before the migration belongs to vincent@getinference.com
   3. A signed-in user sees only their own data on every screen, and a URL naming another account's run or draft answers not-found rather than showing it
   4. Each user connects their own Fireflies and Zernio accounts, and no user's imports or pushes can use another user's credentials

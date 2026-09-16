@@ -49,7 +49,8 @@ Requirements for the MVP text loop (LinkedIn only, Vincent's own data). Each map
 Added 2026-09-16 for Phase 6. These supersede PLAT-02 ("only Vincent can reach it"),
 which was correct for the single-user pilot and is deliberately reopened here.
 
-- [ ] **ACCT-01**: A new user reaches the app by entering their own email address, with no manual allow-listing
+- [ ] **ACCT-01**: An address the operator invites can sign in and is treated as its own account; inviting someone is editing the Cloudflare Access email list, not a code change or a deploy
+  - Reworded 2026-09-16. It previously read "with no manual allow-listing", which open registration would have satisfied. Vincent chose invite-list instead — "i don't want people to use my openai account / api freely" — because every registered account can spend the operator's OpenAI credit. Manual invitation is now the requirement, not a shortfall against it.
 - [ ] **ACCT-02**: Every transcript, voice sample, run, outlier, draft and setting belongs to exactly one account
 - [ ] **ACCT-03**: Every row that existed before the migration belongs to vincent@getinference.com, and nothing is lost
 - [ ] **ACCT-04**: A user sees only their own data; a request naming another account's record answers not-found rather than showing it

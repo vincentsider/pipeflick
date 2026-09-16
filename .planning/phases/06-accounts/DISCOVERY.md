@@ -23,7 +23,9 @@ An open OTP policy means *any address on the internet* can register. Every regis
 2. Restrict to one or more **email domains** — works if the pilot users share a firm.
 3. Open OTP plus an in-app **invite code** checked on first sign-in before any row is created.
 
-Recommended: (1) for the first extra users, (3) only if genuinely open registration is wanted. Decided at a checkpoint in 06-02 rather than assumed here.
+**DECIDED 2026-09-16: option (1), the invite list.** Vincent: "i don't want people to use my openai account / api freely." The Include rule stays an explicit email list the operator edits; nobody uninvited reaches the Worker at all.
+
+Note what this does and does not close. It closes registration abuse completely — an uninvited address never gets a PIN. It does **not** cap spend: an invited account can still start unlimited runs on the operator's OpenAI key. That gap is recorded as `.planning/todos/pending/cap-run-spend-per-account.md` and is deliberately outside Phase 6.
 
 Sources:
 - https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/
