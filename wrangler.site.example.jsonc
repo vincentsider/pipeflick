@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pipeflick-site",
+  "main": "src/public.tsx",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  // Preview hostnames would bypass the hostname-based Access gate (Plan 01-02).
+  "preview_urls": false,
+  // Landing-page photographs are inlined as binary modules and served by the
+  // Worker itself (src/landing.tsx). Deliberately not an `assets` binding: that
+  // puts a router Worker in front, which drops ctx.access and would break the
+  // Access gate for every other route.
+  "rules": [
+    { "type": "Data", "globs": ["**/*.webp"] }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pipeflick-db",
+      "database_id": "YOUR_D1_DATABASE_ID"
+    }
+  ]
+  // No `assets` binding: static assets run behind a router Worker that drops ctx.access.
+}

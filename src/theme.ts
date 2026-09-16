@@ -521,3 +521,13 @@ export const ALL_CSS = TOKENS + COMPONENTS + APP + SCREENS;
 /** Source Serif 4, the one webfont the design uses. */
 export const FONT_HREF =
   "https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap";
+
+/** The wordmark as a favicon, inline so no asset route is needed. */
+export const FAVICON =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+      '<rect width="32" height="32" rx="2" fill="#006786"/>' +
+      '<text x="16" y="23" font-family="Georgia,serif" font-size="21" font-weight="600" ' +
+      'fill="#ffffff" text-anchor="middle">P</text></svg>',
+  );

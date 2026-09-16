@@ -45,3 +45,6 @@ images/
 
 # Design handoff bundle (reference, not shipped)
 design/
+
+# Local public-Worker config; wrangler.site.example.jsonc is the template.
+wrangler.site.jsonc

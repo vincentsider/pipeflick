@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "hono/jsx";
-import { ALL_CSS, FONT_HREF } from "./theme";
+import { ALL_CSS, FAVICON, FONT_HREF } from "./theme";
 
 /**
  * The app shell, on the Broadsheet design system (design/README.md, "App
@@ -60,6 +60,7 @@ export const Layout: FC<LayoutProps> = ({ title, crumb, path, children }) => {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title}</title>
+        <link rel="icon" href={FAVICON} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
         <link rel="stylesheet" href={FONT_HREF} />

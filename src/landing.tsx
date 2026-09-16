@@ -534,8 +534,8 @@ const LandingPage: FC<{ sent: boolean; error?: string }> = ({ sent, error }) => 
               <a href="#grounding">Grounding</a>
               <a href="#pilot">Pilot</a>
             </nav>
-            <a href="#pilot" class="btn btn-primary">
-              Request the pilot
+            <a href="/sources" class="btn btn-primary">
+              Open the app
             </a>
           </div>
         </header>
@@ -553,8 +553,8 @@ const LandingPage: FC<{ sent: boolean; error?: string }> = ({ sent, error }) => 
                 nothing published without your yes.
               </p>
               <div class="pf-cta-row">
-                <a href="#pilot" class="btn btn-primary">
-                  Request the pilot
+                <a href="/sources" class="btn btn-primary">
+                  Open the app
                 </a>
                 <a href="#grounding" class="btn btn-secondary">
                   See how it proves itself
@@ -750,6 +750,7 @@ const LandingPage: FC<{ sent: boolean; error?: string }> = ({ sent, error }) => 
         <footer class="pf-bound pf-footer">
           <span class="pf-footer-brand">Pipeflick</span>
           <span style="font-size:14px;color:var(--color-neutral-700)">Drafts, never autopilot.</span>
+          <a href="/sources" style="font-size:14px">Open the app</a>
           <span style="margin-left:auto;font-size:14px;color:var(--color-neutral-600)">© 2026</span>
         </footer>
       </div>
