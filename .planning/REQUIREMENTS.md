@@ -44,11 +44,25 @@ Requirements for the MVP text loop (LinkedIn only, Vincent's own data). Each map
 - [ ] **SCHED-02**: User can push an accepted draft to Zernio as an unscheduled LinkedIn post with one click
 - [ ] **SCHED-03**: User sees whether the push succeeded, and the draft records its pushed state and Zernio id
 
+### Accounts
+
+Added 2026-09-16 for Phase 6. These supersede PLAT-02 ("only Vincent can reach it"),
+which was correct for the single-user pilot and is deliberately reopened here.
+
+- [ ] **ACCT-01**: A new user reaches the app by entering their own email address, with no manual allow-listing
+- [ ] **ACCT-02**: Every transcript, voice sample, run, outlier, draft and setting belongs to exactly one account
+- [ ] **ACCT-03**: Every row that existed before the migration belongs to vincent@getinference.com, and nothing is lost
+- [ ] **ACCT-04**: A user sees only their own data; a request naming another account's record answers not-found rather than showing it
+- [ ] **ACCT-05**: Each user connects their own Fireflies and Zernio credentials, stored per account and never shared between accounts
+- [ ] **ACCT-06**: A user can delete their account and everything it owns
+
 ### Platform
 
 - [x] **PLAT-01**: App runs on Cloudflare Workers with D1, deployed with wrangler
 - [x] **PLAT-02**: App is gated by Cloudflare Access so only Vincent can reach it
+  - Superseded by ACCT-01 from Phase 6 onward. True for the single-user pilot; deliberately reopened, not a defect.
 - [x] **PLAT-03**: OpenAI, Fireflies and Zernio keys live in Worker secrets, never in D1 or the repo
+  - Partially superseded by ACCT-05: OpenAI stays a Worker secret (the operator pays for it), but Fireflies and Zernio become per-account and must leave Worker secrets.
 
 ## v2 Requirements
 
@@ -131,6 +145,12 @@ Which phases cover which requirements. Updated by create-roadmap.
 | SCHED-01 | Phase 5 | Pending |
 | SCHED-02 | Phase 5 | Pending |
 | SCHED-03 | Phase 5 | Pending |
+| ACCT-01 | Phase 6 | Pending |
+| ACCT-02 | Phase 6 | Pending |
+| ACCT-03 | Phase 6 | Pending |
+| ACCT-04 | Phase 6 | Pending |
+| ACCT-05 | Phase 6 | Pending |
+| ACCT-06 | Phase 6 | Pending |
 | PLAT-01 | Phase 1 | Complete |
 | PLAT-02 | Phase 1 | Complete |
 | PLAT-03 | Phase 1 | Complete |

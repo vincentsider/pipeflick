@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Drafting** - Outliers to hidden templates, runs that produce three LinkedIn drafts
 - [x] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
 - [ ] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
+- [ ] **Phase 6: Accounts** - Anyone can register; every row belongs to one account and no one sees another's data
 
 ## Phase Details
 
@@ -117,10 +118,39 @@ Plans:
 - [ ] 05-03: `/zernio` connection page and LinkedIn account selection (SCHED-01) — wave 2
 - [ ] 05-04: Push button, route, pushed state, deploy and human check — wave 3
 
+### Phase 6: Accounts
+**Goal**: Anyone can register and use Pipeflick on their own material, with every stored row owned by exactly one account and Vincent's existing data still his
+**Depends on**: Phase 5
+**Requirements**: ACCT-01, ACCT-02, ACCT-03, ACCT-04, ACCT-05, ACCT-06
+**Success Criteria** (what must be TRUE):
+  1. A new person reaches the app by entering their own email address, with no one adding them by hand first
+  2. Every transcript, voice sample, run, outlier, draft and setting belongs to exactly one account, and every row that existed before the migration belongs to vincent@getinference.com
+  3. A signed-in user sees only their own data on every screen, and a URL naming another account's run or draft answers not-found rather than showing it
+  4. Each user connects their own Fireflies and Zernio accounts, and no user's imports or pushes can use another user's credentials
+  5. The public demo no longer exposes real accounts
+  6. A user can delete their account and everything it owns
+**Research**: Likely
+**Research topics**: Cloudflare Access self-registration (one-time PIN to any email) — policy shape, seat limits and cost past the free tier; where per-user third-party credentials should live (encrypted column in D1 vs Workers KV vs Secrets Store) and how they are encrypted at rest; whether `ctx.access` still carries an identity for a self-registered user
+
+**This phase is a deliberate scope change, not a gap.** CLAUDE.md lists multi-client SaaS and onboarding as explicitly out of scope for the pilot, and PLAT-02 currently reads "gated by Cloudflare Access so only Vincent can reach it". Phase 6 supersedes PLAT-02 and reopens that decision on purpose; it should not start until the pilot's own question — whether the drafts are good enough to publish — has an answer, because multi-tenancy makes every later change more expensive without moving that number.
+
+**Two things that are larger than they look:**
+- **Third-party keys stop being the operator's.** OpenAI can stay a Worker secret because the operator pays for it. Fireflies and Zernio cannot: another user's meetings live in their Fireflies account and their posts belong in their Zernio. Both must move out of Worker secrets into per-account storage, which reverses the Phase 1 decision that keys live in Worker secrets and never in D1 (PLAT-03). Storing other people's API keys means encrypting them and owning that risk.
+- **Compliance changes category.** The pilot runs on the founder's own data specifically so it is never blocked on third-party consent. The moment another user imports a meeting, the project processes third parties' recordings and becomes a data processor under the Data Protection (Jersey) Law 2018: a privacy notice, a processing agreement, deletion on request, and a defensible answer on Fireflies being US-hosted. That is a prerequisite for letting a real user import a real meeting, not a follow-up.
+
+**Plans**: 4 plans in 3 waves (estimated; not yet planned)
+
+Plans:
+- [ ] 06-01: Migration 0008 — `owner_email` on every table, backfill to vincent@getinference.com, ownership-scoped reads and writes in `src/db.ts` — wave 1
+- [ ] 06-02: Access self-registration, and the signed-in identity carried into every route as the owner — wave 1
+- [ ] 06-03: Per-account Fireflies and Zernio credentials, out of Worker secrets and into encrypted per-account storage — wave 2
+- [ ] 06-04: Close or re-scope the public demo, account deletion, deploy and human check — wave 3
+
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -129,3 +159,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Drafting | 7/7 | Complete | 2026-09-15 |
 | 4. Approval Gate | 3/3 | Complete | 2026-09-15 |
 | 5. Zernio Push | 0/4 | Planned | - |
+| 6. Accounts | 0/4 | Not planned | - |
