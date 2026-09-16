@@ -39,3 +39,6 @@ wrangler.jsonc
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Source photographs. Only the optimized src/assets/*.webp are committed.
+images/

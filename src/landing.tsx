@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import type { FC } from "hono/jsx";
 import type { AppEnv } from "./access";
 import { insertPilotRequest } from "./db";
+import heroBandImage from "./assets/hero-band.webp";
+import portraitImage from "./assets/portrait.webp";
 
 /**
  * The public landing page.
@@ -12,11 +14,22 @@ import { insertPilotRequest } from "./db";
  * call `next()`, so the gate is reached by every other path. Nothing here
  * reads D1 except the pilot form's single insert, and nothing reads a secret.
  *
- * Note that Cloudflare Access gates the *hostname* at the edge, so an
- * anonymous visitor is still 302'd to the Access login before the Worker
- * runs. Making this page genuinely public also needs the Access application
- * re-scoped to the app's paths; until then this route is reachable only to a
- * signed-in visitor. See README.
+ * Cloudflare Access gates the *hostname* at the edge, before the Worker runs,
+ * so this route cannot be public on the app's own hostname. The same bundle is
+ * therefore deployed twice:
+ *
+ *   pipeflick.your-subdomain.workers.dev       Access app in front. Everything
+ *                                           gated, including this page.
+ *   pipeflick-site.your-subdomain.workers.dev  No Access app. This page is
+ *                                           public; every other route is
+ *                                           403'd by `requireAccess`, which
+ *                                           finds no `ctx.access` there.
+ *
+ * That second hostname is safe precisely because the Worker's own gate fails
+ * closed. Measured on the deployed site: `/` is 200 and /app, /runs, /sources,
+ * /fireflies, /zernio, /settings, /health, /health.json and an unknown path are
+ * all 403. If `requireAccess` ever gains a bypass, the public hostname stops
+ * being safe — which is the reason it has none.
  *
  * Design source: "Pipeflick Landing.dc.html" in the Claude Design project,
  * on the Broadsheet design system. The token block below is copied from that
@@ -471,6 +484,10 @@ const MEASURES = [
   { v: "4 weeks", k: "before the decision log is reviewed together" },
 ] as const;
 
+/** Image routes. Public, because the page that needs them is. */
+const HERO_BAND_URL = "/img/hero-band.webp";
+const PORTRAIT_URL = "/img/portrait.webp";
+
 /**
  * A photograph area. The design carries two `<image-slot>` drop zones, which
  * are a canvas authoring affordance rather than something to ship. Passing a
@@ -594,7 +611,10 @@ const LandingPage: FC<{ sent: boolean; error?: string }> = ({ sent, error }) => 
         </section>
 
         <section class="pf-band">
-          <Photo alt="" />
+          <Photo
+            src={HERO_BAND_URL}
+            alt="Two executives on a rooftop terrace at dusk, one stepping across glass panels toward the other's offered hand, a city skyline behind them."
+          />
           <div class="pf-band-cap">
             <div class="pf-bound">
               <p>Forty-eight minutes on stage. Six hundred lines of your own thinking.</p>
@@ -685,7 +705,7 @@ const LandingPage: FC<{ sent: boolean; error?: string }> = ({ sent, error }) => 
 
         <section class="pf-bound pf-portrait-grid">
           <div class="pf-portrait">
-            <Photo alt="" />
+            <Photo src={PORTRAIT_URL} alt="Portrait of the pilot user." />
           </div>
           <div>
             <p class="pf-pull">
@@ -748,6 +768,26 @@ export const MAX_EMAIL_CHARS = 254;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const landing = new Hono<AppEnv>();
+
+/**
+ * The photographs. Served from the Worker rather than an assets binding, and
+ * from this router so they sit in front of the Access gate along with the page
+ * that needs them — a public page whose images 302 to a login would render as
+ * two broken boxes.
+ *
+ * Cached for a week rather than `immutable`: the filenames are stable, so a
+ * replaced photograph has to be able to reach people who already loaded one.
+ */
+const IMAGE_CACHE_CONTROL = "public, max-age=604800";
+
+function image(body: ArrayBuffer): Response {
+  return new Response(body, {
+    headers: { "Content-Type": "image/webp", "Cache-Control": IMAGE_CACHE_CONTROL },
+  });
+}
+
+landing.get(HERO_BAND_URL, () => image(heroBandImage));
+landing.get(PORTRAIT_URL, () => image(portraitImage));
 
 landing.get("/", (c) =>
   c.html(<LandingPage sent={c.req.query("sent") === "1"} />),

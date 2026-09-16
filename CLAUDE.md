@@ -15,7 +15,12 @@ Cloudflare Worker written in TypeScript with Hono + `hono/jsx` server rendering 
 - `npm run db:migrate:local` / `npm run db:migrate:remote` — apply `migrations/*.sql` to the local or production D1 (`pipeflick-db`)
 - `npm run secrets:push` — after filling `.dev.vars`, push every line in it as a Worker secret (`wrangler secret bulk .dev.vars`); keep `.dev.vars` to real secrets only, no local toggles
 
-Deployed at: https://pipeflick.your-subdomain.workers.dev
+Deployed twice, from one bundle:
+
+- **App (gated):** `https://pipeflick.your-subdomain.workers.dev` — `npm run deploy`. A Cloudflare Access application covers this whole hostname, so every route including `/` is behind the login.
+- **Public site:** `https://pipeflick-site.your-subdomain.workers.dev` — `npx wrangler deploy --name pipeflick-site`. Same code, a hostname with no Access application. The landing page at `/` is public there; every other route is 403'd by `requireAccess`, which finds no `ctx.access`.
+
+**Deploy both after any change**, or the public site goes stale. The second hostname is only safe because `requireAccess` fails closed and has no bypass — do not add one.
 
 After any deploy, open `/health` first (or `/health.json` for scripts): it round-trips a timestamp through D1 and shows each secret as set / not set.
 

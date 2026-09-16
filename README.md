@@ -22,6 +22,17 @@ Cloudflare Workers · Hono + `hono/jsx` server rendering · D1 · OpenAI Respons
 
 No client-side JavaScript, no build step beyond wrangler's esbuild.
 
+## Deployment
+
+One bundle, two hostnames:
+
+| | Access | What's reachable |
+| --- | --- | --- |
+| `pipeflick.<subdomain>.workers.dev` | Cloudflare Access on the hostname | Everything, after login |
+| `pipeflick-site.<subdomain>.workers.dev` | none | `/` only — the rest 403s |
+
+Access gates the hostname at the edge, before the Worker runs, so a public page cannot live on the gated hostname. The public deploy works because the Worker's own `requireAccess` middleware fails closed: with no `ctx.access`, every route except the landing page answers 403 on its own. `npm run deploy` ships the app; `npx wrangler deploy --name pipeflick-site` ships the public site. Run both.
+
 ## Running it
 
 ```bash
