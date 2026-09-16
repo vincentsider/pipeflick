@@ -70,10 +70,14 @@ export const Layout: FC<LayoutProps> = ({ title, crumb, path, children }) => {
         <header class="pf-header">
           <div class="pf-header-in">
             <div class="pf-brand">
-              <span class="pf-mark" aria-hidden="true">
-                P
-              </span>
-              <span class="pf-wordmark">Pipeflick</span>
+              {/* The mark and wordmark are the way home, which is what a
+                  reader expects of a logo. */}
+              <a class="pf-home" href="/" aria-label="Pipeflick home">
+                <span class="pf-mark" aria-hidden="true">
+                  P
+                </span>
+                <span class="pf-wordmark">Pipeflick</span>
+              </a>
               <span class="tag tag-accent">Pilot</span>
             </div>
 

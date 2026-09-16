@@ -158,6 +158,13 @@ button:not([class]):disabled { opacity: .45; cursor: not-allowed; }
   display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap;
 }
 .pf-brand { display: flex; align-items: center; gap: var(--space-3); }
+.pf-home {
+  display: flex; align-items: center; gap: var(--space-3);
+  color: inherit; text-decoration: none;
+}
+.pf-home:hover { color: inherit; text-decoration: none; }
+.pf-home:hover .pf-mark { background: var(--color-accent-600); }
+.pf-mark { transition: background .18s ease; }
 .pf-mark {
   width: 30px; height: 30px; flex: none; border-radius: var(--radius-md);
   background: var(--color-accent-700); color: var(--surface-card);

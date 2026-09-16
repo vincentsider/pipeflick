@@ -141,6 +141,10 @@ const PAGE_CSS = `
   font-family: var(--font-heading); font-size: 17px; font-weight: 600;
 }
 .pf-wordmark { font-family: var(--font-heading); font-weight: 600; font-size: 20px; letter-spacing: -0.01em; }
+.pf-home { display: flex; align-items: center; gap: var(--space-3); color: inherit; text-decoration: none; }
+.pf-home:hover { color: inherit; text-decoration: none; }
+.pf-home:hover .pf-mark { background: var(--color-accent-600); }
+.pf-mark { transition: background .18s ease; }
 .pf-nav { margin-left: var(--space-6); display: flex; gap: var(--space-4); flex-wrap: wrap; }
 .pf-nav a { font-size: 15px; color: var(--color-neutral-700); }
 .pf-header .btn { margin-left: auto; }
@@ -525,10 +529,12 @@ const LandingPage: FC<{ sent: boolean; error?: string }> = ({ sent, error }) => 
       <div class="pf-shell">
         <header class="pf-header">
           <div class="pf-bound pf-header-in">
-            <span class="pf-mark" aria-hidden="true">
-              P
-            </span>
-            <span class="pf-wordmark">Pipeflick</span>
+            <a class="pf-home" href="/" aria-label="Pipeflick home">
+              <span class="pf-mark" aria-hidden="true">
+                P
+              </span>
+              <span class="pf-wordmark">Pipeflick</span>
+            </a>
             <nav class="pf-nav">
               <a href="#how">How it works</a>
               <a href="#grounding">Grounding</a>
