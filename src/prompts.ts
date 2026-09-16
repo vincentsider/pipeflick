@@ -560,3 +560,124 @@ export function checkGrounding(post: string, sourceLines: string[], sources: str
     grounded: citationsResolved && unsupported.length === 0 && repeated.length === 0,
   };
 }
+
+/** One sentence of a draft, as the approval screen renders it. */
+export type GroundingSegment = {
+  /**
+   * Which paragraph of the post this sentence belongs to, zero-based. The
+   * screen renders one `<p>` per paragraph with the segments inline, so a post
+   * keeps the shape the model wrote — a LinkedIn post uses line breaks as
+   * punctuation and reads wrong as one block.
+   */
+  paragraph: number;
+  /**
+   * The sentence exactly as the post wrote it, including the whitespace that
+   * follows it inside its paragraph. Concatenating a paragraph's segments
+   * reproduces that paragraph character for character, which is what lets the
+   * screen mark sentences without altering the text being judged.
+   */
+  text: string;
+  /**
+   * `traced` — supported by the executive's own material.
+   * `untraced` — checked and not supported; the model wrote it unaided.
+   * `plain` — too short to carry a claim (connective prose), so never checked.
+   */
+  kind: "traced" | "untraced" | "plain";
+  /**
+   * The single source line the sentence was attributed to, for the citation
+   * panel. NULL on `untraced` and `plain`, and also on a `traced` sentence
+   * whose support is spread across more than one line — see below.
+   */
+  source: string | null;
+};
+
+/**
+ * The same verdict as `checkGrounding`, reported per sentence instead of as
+ * totals, so the approval screen can mark each line and show the transcript
+ * line behind it.
+ *
+ * Two properties this has to keep, because the screen shows both at once:
+ *
+ * 1. **The counts agree with `checkGrounding`.** traced/untraced/plain here
+ *    map exactly onto supported/unsupported/skipped there, because the kind
+ *    is decided by the same `GROUNDING_MIN_CLAIM_TOKENS` cut and the same
+ *    `supportedBy` call against the same pooled sources. A screen that marked
+ *    a different number of lines than the panel counted would make the report
+ *    unreadable.
+ *
+ * 2. **Attribution is a second, stricter question.** Support is decided
+ *    against the pooled material; the citation is found by re-testing the
+ *    sentence against each line on its own. A sentence drawing on two lines
+ *    is genuinely supported but has no single line to quote, so it stays
+ *    `traced` with a NULL source. Reporting no citation is honest; picking
+ *    the nearest line and calling it the source would not be.
+ *
+ * `sources` is the same pool `checkGrounding` is given — the transcript body
+ * and the voice samples, never an outlier and never an approved post (03-05,
+ * 04-03). The blind spot is unchanged: a short invented sentence said once is
+ * `plain`, not `untraced`, which is why the screen states how many lines went
+ * unchecked.
+ */
+export function groundingSegments(post: string, sources: string[]): GroundingSegment[] {
+  const poolNormalised = normaliseForMatch(sources.join("\n"));
+  const poolTokens = tokenise(poolNormalised);
+  const poolShingles = new Set(shingles(poolTokens, GROUNDING_SHINGLE_TOKENS));
+
+  // Candidate citations: every non-blank line of the pooled material.
+  const lines = sources
+    .flatMap((source) => source.split("\n"))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const attribute = (sentence: string): string | null => {
+    for (const line of lines) {
+      const lineNormalised = normaliseForMatch(line);
+      const lineShingles = new Set(shingles(tokenise(lineNormalised), GROUNDING_SHINGLE_TOKENS));
+      if (supportedBy(sentence, lineNormalised, lineShingles)) return line;
+    }
+    return null;
+  };
+
+  const classify = (sentence: string): Pick<GroundingSegment, "kind" | "source"> => {
+    if (tokenise(normaliseForMatch(sentence)).length < GROUNDING_MIN_CLAIM_TOKENS) {
+      return { kind: "plain", source: null };
+    }
+    if (supportedBy(sentence, poolNormalised, poolShingles)) {
+      return { kind: "traced", source: attribute(sentence) };
+    }
+    return { kind: "untraced", source: null };
+  };
+
+  const out: GroundingSegment[] = [];
+
+  post.split(/\n{2,}/).forEach((paragraph, index) => {
+    if (paragraph.trim().length === 0) return;
+
+    // `splitSentences` returns trimmed sentences, so the whitespace between
+    // them is re-attached here by walking the paragraph: each segment keeps
+    // the gap that follows it, and the concatenation is the paragraph again.
+    const sentences = splitSentences(paragraph);
+    let cursor = 0;
+
+    sentences.forEach((sentence, n) => {
+      const at = paragraph.indexOf(sentence, cursor);
+      if (at < 0) return;
+
+      const isLast = n === sentences.length - 1;
+      let end = at + sentence.length;
+      if (!isLast) {
+        const next = paragraph.indexOf(sentences[n + 1], end);
+        if (next >= 0) end = next;
+      } else {
+        end = paragraph.length;
+      }
+
+      // Any text before the first sentence belongs to it, so nothing is lost.
+      const start = n === 0 ? 0 : at;
+      out.push({ paragraph: index, text: paragraph.slice(start, end), ...classify(sentence) });
+      cursor = end;
+    });
+  });
+
+  return out;
+}

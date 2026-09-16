@@ -27,6 +27,7 @@ import {
   buildDraftingInput,
   buildExtractionInput,
   checkGrounding,
+  groundingSegments,
   excerptTranscript,
   normaliseForMatch,
   splitSentences,
@@ -586,5 +587,87 @@ describe("checkGrounding", () => {
     expect(report.checked).toBe(0);
     expect(report.skipped).toBe(0);
     expect(report.grounded).toBe(false);
+  });
+});
+
+describe("groundingSegments", () => {
+  const TRANSCRIPT = [
+    "A ghostwriter is thirty to forty grand a year and they still need an hour of my time a week to get anything out of me.",
+    "The expensive bit isn't the writing. It's getting the thinking out of the head of the person who actually has it.",
+  ].join("\n");
+
+  it("marks a sentence drawn from the transcript as traced and names the line", () => {
+    const post = "Ghostwriters cost thirty to forty grand a year and they still need an hour of your time a week.";
+    const [segment] = groundingSegments(post, [TRANSCRIPT]);
+
+    expect(segment.kind).toBe("traced");
+    expect(segment.source).toContain("thirty to forty grand");
+  });
+
+  it("marks an invented claim as untraced with no source", () => {
+    const post = "Our platform increased revenue by sixty per cent across every single client last quarter.";
+    const [segment] = groundingSegments(post, [TRANSCRIPT]);
+
+    expect(segment.kind).toBe("untraced");
+    expect(segment.source).toBeNull();
+  });
+
+  it("leaves connective prose plain rather than calling it invented", () => {
+    const segments = groundingSegments("It just dies.", [TRANSCRIPT]);
+
+    expect(segments[0].kind).toBe("plain");
+    expect(segments[0].source).toBeNull();
+  });
+
+  it("reproduces each paragraph character for character", () => {
+    const post = [
+      "The expensive bit isn't the writing. It's getting the thinking out of the head of the person who actually has it.",
+      "It just dies in the recording.",
+    ].join("\n\n");
+
+    const segments = groundingSegments(post, [TRANSCRIPT]);
+    const rebuilt = [0, 1].map((n) =>
+      segments.filter((s) => s.paragraph === n).map((s) => s.text).join(""),
+    );
+
+    expect(rebuilt.join("\n\n")).toBe(post);
+  });
+
+  it("keeps paragraphs apart so the screen can render them as paragraphs", () => {
+    const post = "First paragraph here.\n\nSecond paragraph here.";
+    const paragraphs = new Set(groundingSegments(post, [TRANSCRIPT]).map((s) => s.paragraph));
+
+    expect(paragraphs).toEqual(new Set([0, 1]));
+  });
+
+  /**
+   * The load-bearing one. The approval screen shows the marked-up post and the
+   * "N of M lines" panel side by side, so the two must be counting the same
+   * thing. If this drifts, one of them is lying.
+   */
+  it("agrees with checkGrounding's counts", () => {
+    const post = [
+      "Ghostwriters cost thirty to forty grand a year and they still need an hour of my time a week.",
+      "It just dies.",
+      "Our platform increased revenue by sixty per cent across every single client last quarter.",
+    ].join(" ");
+
+    const report = checkGrounding(post, [], [TRANSCRIPT]);
+    const segments = groundingSegments(post, [TRANSCRIPT]);
+
+    expect(segments.filter((s) => s.kind === "traced").length).toBe(report.supported);
+    expect(segments.filter((s) => s.kind === "untraced").length).toBe(report.unsupported.length);
+    expect(segments.filter((s) => s.kind === "plain").length).toBe(report.skipped);
+    expect(segments.filter((s) => s.kind !== "plain").length).toBe(report.checked);
+  });
+
+  it("never attributes an outlier's phrasing, because outliers are not in the pool", () => {
+    const outlier = "I turned down a forty thousand pound retainer last month and here is what I said.";
+    const post = "I turned down a forty thousand pound retainer last month and here is what I said.";
+
+    // The pool is the transcript only — the same rule checkGrounding follows.
+    const [segment] = groundingSegments(post, [TRANSCRIPT]);
+    expect(segment.kind).toBe("untraced");
+    expect(outlier).toContain("retainer");
   });
 });
