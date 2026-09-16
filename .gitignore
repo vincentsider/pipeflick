@@ -42,3 +42,6 @@ wrangler.jsonc
 
 # Source photographs. Only the optimized src/assets/*.webp are committed.
 images/
+
+# Design handoff bundle (reference, not shipped)
+design/

@@ -54,6 +54,8 @@ import {
   TIMEOUT_EXTRACT_MS,
   type DraftOutput,
   type Template,
+  groundingSegments,
+  type GroundingSegment,
 } from "./prompts";
 import { createLinkedInDraft, MAX_LINKEDIN_CHARS, ZernioError } from "./zernio";
 
@@ -830,6 +832,84 @@ function progress(view: RunView): { done: number; total: number } {
   return { done: jobs.filter((job) => job.status === "done").length, total: jobs.length };
 }
 
+/**
+ * The run's steps as the design's step list renders them.
+ *
+ * The handoff shows five fixed steps because the prototype faked a timer. A
+ * real run has one extraction per pasted outlier plus one call per draft, so
+ * it is 5 *or* 6, and the rows are built from the job rows themselves. A
+ * hardcoded five would misreport every two-outlier run — the same reason
+ * 03-03 refused to hardcode "of 6" in the progress line.
+ */
+type StepRow = { phase: string; label: string; state: "done" | "working" | "queued" | "failed" };
+
+function runSteps(view: RunView): StepRow[] {
+  const jobState = (status: JobStatus): StepRow["state"] =>
+    status === "done"
+      ? "done"
+      : status === "running"
+        ? "working"
+        : status === "failed"
+          ? "failed"
+          : "queued";
+
+  const extraction = view.outliers.map((outlier, index) => ({
+    phase: `Outlier ${["A", "B", "C"][index] ?? index + 1}`,
+    label: "Format extracted — hook, structure, angle",
+    state: jobState(outlier.status),
+  }));
+
+  const drafting = view.drafts.map((draft) => ({
+    phase: `Draft ${draft.position}`,
+    label: "Filled with your own material, then checked against your words",
+    state: jobState(draft.status),
+  }));
+
+  return [...extraction, ...drafting];
+}
+
+/**
+ * Where a decision or a push returns to.
+ *
+ * The approval screen posts the same forms the run page does, so the handlers
+ * are untouched apart from this: a hidden `return_draft` says which draft the
+ * reader was on, and they land back on it instead of at the top of the run.
+ * Absent or malformed, the redirect is the run page exactly as before.
+ */
+function returnTo(form: Record<string, unknown>, runId: string): string {
+  const draft = field(form["return_draft"]);
+  return /^\d{1,3}$/.test(draft) ? `/runs/${runId}/approve?draft=${draft}` : `/runs/${runId}`;
+}
+
+/** Coverage as stored at run creation. NULL for runs predating migration 0004. */
+function runCoverage(view: RunView): { used: number; total: number; percent: number } | null {
+  const used = view.run.transcript_lines_used;
+  const total = view.run.transcript_lines_total;
+  if (used === null || total === null || total === 0) return null;
+  return { used, total, percent: Math.round((used / total) * 100) };
+}
+
+/** The design's state-dependent heading, driven by real job state. */
+function runHeading(view: RunView, advance: Advance, finished: boolean): string {
+  if (finished) return "Three drafts ready.";
+  if (advance.inFlight || advance.claimable) return "Drafting.";
+  if (advance.stoppedBy) return "Run stopped.";
+  return "Nothing running.";
+}
+
+function runSub(view: RunView, advance: Advance, finished: boolean, written: number): string {
+  if (finished) {
+    return `${written} of ${view.drafts.length} drafts written. Read them, then accept, edit or reject each one.`;
+  }
+  if (advance.inFlight || advance.claimable) {
+    return "One call per step. You can leave the page; the run keeps going.";
+  }
+  if (advance.stoppedBy) {
+    return "A step failed and the run is waiting on you. Retry picks up where it stopped.";
+  }
+  return "Pick a transcript and paste an outlier, then start a run.";
+}
+
 /** Why the run is not continuing by itself, when it is not. */
 type Halt = "permanent" | "attempts";
 
@@ -1195,46 +1275,107 @@ runs.get("/runs/:id", async (c) => {
   const accountLabel = (await getSetting(c.env.DB, ZERNIO_ACCOUNT_LABEL_KEY)) ?? "";
   const pushTarget = accountId === "" ? null : accountLabel || accountId;
 
+  const written = view.drafts.filter((draft) => draft.status === "done").length;
+  const finished = done === total && total > 0;
+  const coverage = runCoverage(view);
+
   return c.html(
-    <Layout title={`Pipeflick run — ${title}`} path="/runs">
-      <h2>Run</h2>
-      <p class="hint">{`${title} · started ${formatDateTime(view.run.created_at)}`}</p>
-      <p>
-        {`${done} of ${total} steps done`} <StepStatus status={view.run.status} />
-      </p>
-      <TranscriptCoverage
-        used={view.run.transcript_lines_used}
-        total={view.run.transcript_lines_total}
-      />
-      <RunControl
-        runId={id}
-        done={done}
-        total={total}
-        advance={advance}
-        pauseSeconds={pauseSeconds}
-      />
+    <Layout
+      title={`Pipeflick run — ${title}`}
+      path="/runs"
+      crumb={advance.auto ? "Run in progress" : `${done} of ${total} steps done`}
+    >
+      <section class="pf-split">
+        <div>
+          <span class="tag tag-accent tag-12">Step 2 · Run</span>
+          <h1 class="pf-h1-run">{runHeading(view, advance, finished)}</h1>
+          <p class="pf-sub">{runSub(view, advance, finished, written)}</p>
 
-      <h3>Templates</h3>
-      <p class="hint">
-        Each pasted outlier is broken down into a reusable format. The format itself is kept for the
-        drafts and is not shown.
-      </p>
-      <TemplateSteps outliers={view.outliers} />
+          <div class="pf-steps-card">
+            <div class="pf-track">
+              <div
+                class="pf-fill"
+                style={`width:${total === 0 ? 0 : Math.round((done / total) * 100)}%`}
+              />
+            </div>
+            <div class="pf-steps-body">
+              {runSteps(view).map((step) => (
+                <div class="pf-step-row">
+                  <span class={`pf-step-dot is-${step.state}`} aria-hidden="true" />
+                  <span class="pf-step-phase">{step.phase}</span>
+                  <span class="pf-step-label">{step.label}</span>
+                  <span class={`pf-chip is-${step.state}`}>{step.state}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <h3>Drafts</h3>
-      {/* `!advance.auto` is the whole condition: the controls appear the moment
-          the page stops resubmitting itself, whether the run finished or
-          halted. A halted run's finished drafts are still worth deciding. */}
-      <DraftSection
-        drafts={view.drafts}
-        runId={id}
-        interactive={!advance.auto}
-        pushTarget={pushTarget}
-      />
+          <TranscriptCoverage
+            used={view.run.transcript_lines_used}
+            total={view.run.transcript_lines_total}
+          />
+          <RunControl
+            runId={id}
+            done={done}
+            total={total}
+            advance={advance}
+            pauseSeconds={pauseSeconds}
+          />
 
-      <p>
-        <a href="/runs">Back to runs</a>
-      </p>
+          <p style="display:flex;gap:var(--space-3);align-items:center;margin-top:var(--space-4);flex-wrap:wrap">
+            <a class="btn btn-primary btn-lg" href={`/runs/${id}/approve`}>
+              {finished ? "Read the drafts" : "Go to approval"}
+            </a>
+            <a class="btn btn-ghost" href="/runs">
+              Back to runs
+            </a>
+          </p>
+        </div>
+
+        <aside class="pf-aside">
+          <div class="pf-panel">
+            <p class="pf-kicker">Transcript coverage</p>
+            <p class="pf-figure" style="font-size:44px">
+              {coverage ? `${coverage.percent}%` : "—"}
+            </p>
+            <p style="font-size:15px;line-height:1.45;margin:var(--space-2) 0 0;color:var(--color-accent-100)">
+              {coverage
+                ? `${coverage.used} of ${coverage.total} of your lines reached the model. The rest fell outside the excerpt window.`
+                : "This run predates coverage tracking, so how much of the transcript reached the model was never recorded."}
+            </p>
+          </div>
+
+          <div class="pf-card pf-card-sm pf-facts">
+            <div class="pf-fact">
+              <span class="pf-fact-k">Transcript</span>
+              <span>{title}</span>
+            </div>
+            <div class="pf-fact">
+              <span class="pf-fact-k">Outliers used</span>
+              <span>{String(view.outliers.length)}</span>
+            </div>
+            <div class="pf-fact">
+              <span class="pf-fact-k">Drafts written</span>
+              <span>{`${written} of ${view.drafts.length}`}</span>
+            </div>
+            <div class="pf-fact">
+              <span class="pf-fact-k">Model calls</span>
+              <span>{`${done} of ${total}`}</span>
+            </div>
+          </div>
+
+          <div class="pf-card pf-card-sm">
+            <p class="pf-kicker" style="color:var(--color-accent-700)">
+              Templates
+            </p>
+            <p class="hint" style="margin:var(--space-2) 0 0">
+              Each pasted outlier is broken down into a reusable format. The format itself is kept
+              for the drafts and is not shown.
+            </p>
+            <TemplateSteps outliers={view.outliers} />
+          </div>
+        </aside>
+      </section>
     </Layout>,
   );
 });
@@ -1414,7 +1555,7 @@ runs.post("/runs/:id/drafts/:draftId/decision", async (c) => {
     if (!written) {
       return c.text("Draft not found", 404);
     }
-    return c.redirect(`/runs/${runId}`, 303);
+    return c.redirect(returnTo(form, runId), 303);
   }
 
   const submitted = normalisePost(field(form["body"]));
@@ -1442,7 +1583,7 @@ runs.post("/runs/:id/drafts/:draftId/decision", async (c) => {
     return c.text("Draft not found", 404);
   }
 
-  return c.redirect(`/runs/${runId}`, 303);
+  return c.redirect(returnTo(form, runId), 303);
 });
 
 /**
@@ -1531,6 +1672,8 @@ runs.post("/runs/:id/drafts/:draftId/push", async (c) => {
   }
   const draftId = Number(rawDraftId);
 
+  const pushForm = await c.req.parseBody();
+
   const apiKey = c.env.ZERNIO_USER_TOKEN;
   if (!apiKey) {
     return c.html(<ZernioNotConfigured />, 500);
@@ -1582,7 +1725,7 @@ runs.post("/runs/:id/drafts/:draftId/push", async (c) => {
     if (!written) {
       return c.text("Draft not found", 404);
     }
-    return c.redirect(`/runs/${runId}`, 303);
+    return c.redirect(returnTo(pushForm, runId), 303);
   } catch (error) {
     // A 409 duplicate is a SUCCESS. Zernio hashes (platform, account, content)
     // for 24 hours and answers with the id of the post that already exists —
@@ -1623,4 +1766,450 @@ runs.post("/runs/:id/retry", async (c) => {
   await resetRunJobs(c.env.DB, runId);
 
   return c.redirect(`/runs/${runId}`, 303);
+});
+
+/* ==========================================================================
+ * Screen 3 — Approve. The human decision, with the evidence beside it.
+ * ======================================================================= */
+
+/** The keyboard shortcuts the handoff asks for, and nothing else.
+ *
+ * The only script in the app besides 03-04's auto-advance. It cannot be done
+ * in CSS, and the handoff is explicit about it. Everything else on this screen
+ * — the citation panel following a hovered or tapped sentence, the edit mode,
+ * the decision — is server-rendered or CSS, so this stays a shortcut layer over
+ * controls that already work without it.
+ *
+ * Suppressed while editing: the guard checks the event target as well as the
+ * mode, so typing "a" into the textarea can never accept a post.
+ */
+const KEY_SCRIPT = `
+document.addEventListener("keydown", function (e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  var t = e.target;
+  if (t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT" || t.isContentEditable)) return;
+  if (document.querySelector("[data-editing]")) return;
+  var k = e.key.toLowerCase();
+  var go = function (sel) {
+    var el = document.querySelector(sel);
+    if (!el) return;
+    e.preventDefault();
+    if (el.tagName === "A") el.click();
+    else el.form.requestSubmit(el);
+  };
+  if (k === "a") go("[data-k-accept]");
+  else if (k === "r") go("[data-k-reject]");
+  else if (k === "e") go("[data-k-edit]");
+  else if (e.key === "ArrowLeft") go("[data-k-prev]");
+  else if (e.key === "ArrowRight") go("[data-k-next]");
+});
+`;
+
+/** Turn one draft's segments into the :has() rules that drive the citation panel. */
+function citationCss(segments: GroundingSegment[]): string {
+  const rules: string[] = [];
+
+  segments.forEach((segment, index) => {
+    if (segment.kind === "plain") return;
+
+    // Each selector is written out in full. Writing the two states as a list
+    // and appending the descendant once — `A, B .card` — would parse as "A"
+    // OR "B .card", so the bare `.pf-approve` would take the declaration and
+    // hide the entire screen the moment a sentence was hovered.
+    for (const state of [":hover", ":focus"]) {
+      const scope = `.pf-approve:has(#seg-${index}${state})`;
+      rules.push(`${scope} .pf-cite-default { display: none }`);
+      rules.push(`${scope} #cite-${index} { display: block }`);
+    }
+  });
+
+  return rules.join("\n");
+}
+
+/** The post, marked sentence by sentence. Paragraphs are the model's own. */
+function MarkedPost({ segments }: { segments: GroundingSegment[] }) {
+  const paragraphs = [...new Set(segments.map((segment) => segment.paragraph))];
+  const [hook, ...rest] = paragraphs;
+
+  const line = (n: number) =>
+    segments.map((segment, index) =>
+      segment.paragraph !== n ? (
+        ""
+      ) : segment.kind === "plain" ? (
+        <span class="pf-seg pf-seg-plain">{segment.text}</span>
+      ) : (
+        // A span, not a button: a button is always inline-block, so each
+        // sentence would sit on its own line instead of flowing with the
+        // paragraph. tabindex makes it focusable, which is what drives the
+        // citation panel on touch, where there is no hover.
+        <span
+          id={`seg-${index}`}
+          class={`pf-seg pf-seg-${segment.kind}`}
+          tabindex={0}
+          role="button"
+          aria-label={
+            segment.kind === "traced"
+              ? "Traced to your own words. Show the source line."
+              : "Not traced to anything you said. Show why."
+          }
+        >
+          {segment.text}
+        </span>
+      ),
+    );
+
+  return (
+    <>
+      {/* The opening line is the post's hook, and the handoff sets it as the
+          card's headline. It is still marked: a hook the model invented is
+          exactly the line a reader most needs to see flagged. */}
+      {hook === undefined ? "" : <h1 class="pf-draft-hook">{line(hook)}</h1>}
+      <article class="pf-draft-body">
+        {rest.map((n) => (
+          <p>{line(n)}</p>
+        ))}
+      </article>
+    </>
+  );
+}
+
+
+/** The evidence sidebar: grounding meter, the focused citation, the tally. */
+function Evidence({
+  segments,
+  sourcesAvailable,
+  tally,
+}: {
+  segments: GroundingSegment[];
+  sourcesAvailable: boolean;
+  tally: { decided: number; total: number; edited: number; pushed: number };
+}) {
+  const checked = segments.filter((segment) => segment.kind !== "plain");
+  const traced = checked.filter((segment) => segment.kind === "traced").length;
+  const plain = segments.length - checked.length;
+  const percent = checked.length === 0 ? 0 : Math.round((traced / checked.length) * 100);
+
+  return (
+    <aside class="pf-evidence">
+      <div class="pf-panel">
+        <p class="pf-kicker">Why this sounds like you</p>
+        <p class="pf-figure" style="font-size:40px">
+          {sourcesAvailable ? `${traced} of ${checked.length} lines` : "No sources"}
+        </p>
+        <div class="pf-meter">
+          <div class="pf-meter-fill" style={`width:${percent}%`} />
+        </div>
+        <p style="font-size:15px;line-height:1.45;margin:var(--space-3) 0 0;color:var(--color-accent-100)">
+          {sourcesAvailable
+            ? "Blue lines are yours — hover one to read the sentence it came from. A grey line means the model wrote it unaided."
+            : "The transcript this run used has been deleted, so nothing can be checked against your words."}
+        </p>
+      </div>
+
+      {/* One card per markable sentence, plus the default. CSS reveals the
+          matching one; only ever one is visible. */}
+      <div class="pf-cite pf-cite-default">
+        <p class="pf-kicker" style="color:var(--color-accent-700);margin-bottom:var(--space-3)">
+          Hover a line
+        </p>
+        <p class="pf-cite-quote">
+          The transcript line behind each highlighted sentence appears here.
+        </p>
+        <p class="pf-cite-meta">
+          Only your lines were stored. Other speakers were dropped at import.
+        </p>
+      </div>
+
+      {segments.map((segment, index) =>
+        segment.kind === "plain" ? (
+          ""
+        ) : (
+          <div
+            id={`cite-${index}`}
+            class={`pf-cite pf-cite-alt${segment.kind === "untraced" ? " pf-cite-untraced" : ""}`}
+          >
+            <p
+              class="pf-kicker"
+              style={`color:${segment.kind === "untraced" ? "var(--color-neutral-800)" : "var(--color-accent-700)"};margin-bottom:var(--space-3)`}
+            >
+              {segment.kind === "untraced" ? "Not traced" : "Your words"}
+            </p>
+            <p class="pf-cite-quote">
+              {segment.kind === "untraced"
+                ? "Not traced to anything you said. Cut it, or say it yourself in an edit."
+                : (segment.source ??
+                  "Supported by your material, but by more than one line — so there is no single sentence to quote.")}
+            </p>
+            <p class="pf-cite-meta">
+              {segment.kind === "untraced"
+                ? "The model produced this line without support in your transcript or samples."
+                : "From your own transcript lines and voice samples."}
+            </p>
+          </div>
+        ),
+      )}
+
+      <div class="pf-card pf-card-sm pf-facts">
+        <div class="pf-fact">
+          <span class="pf-fact-k">Decided</span>
+          <span>{`${tally.decided} of ${tally.total}`}</span>
+        </div>
+        <div class="pf-fact">
+          <span class="pf-fact-k">Accepted with edits</span>
+          <span>{String(tally.edited)}</span>
+        </div>
+        <div class="pf-fact">
+          <span class="pf-fact-k">Pushed to Zernio</span>
+          <span>{String(tally.pushed)}</span>
+        </div>
+        <p class="hint" style="margin:var(--space-2) 0 0">
+          {`${plain} short or connecting ${plain === 1 ? "line was" : "lines were"} too generic to check.`}
+        </p>
+      </div>
+    </aside>
+  );
+}
+
+runs.get("/runs/:id/approve", async (c) => {
+  const id = c.req.param("id");
+  if (!RUN_ID_PATTERN.test(id)) {
+    return c.text("Invalid run id", 400);
+  }
+
+  const view = await getRunView(c.env.DB, id);
+  if (!view) {
+    return c.text("Run not found", 404);
+  }
+
+  const written = view.drafts.filter((row) => row.body !== null);
+  if (written.length === 0) {
+    return c.html(
+      <Layout title="Pipeflick — approval" path="/runs" crumb="Nothing to decide yet">
+        <section>
+          <span class="tag tag-accent tag-12">Step 3 · Approval</span>
+          <h1 class="pf-h1-run">Nothing to read yet.</h1>
+          <p class="pf-sub">
+            This run has not written a draft. Start it, or let it finish, and the posts will appear
+            here.
+          </p>
+          <p style="margin-top:var(--space-4)">
+            <a class="btn btn-primary btn-lg" href={`/runs/${id}`}>
+              Back to the run
+            </a>
+          </p>
+        </section>
+      </Layout>,
+    );
+  }
+
+  // 1-based in the URL, because it is a page number the reader sees.
+  const raw = c.req.query("draft") ?? "1";
+  const wanted = /^\d{1,3}$/.test(raw) ? Number(raw) : 1;
+  const index = Math.min(Math.max(wanted, 1), written.length) - 1;
+  const draft = written[index];
+  const editing = c.req.query("edit") === "1";
+
+  // The pool `checkGrounding` is given: the transcript body and the voice
+  // samples. Never an outlier, never an approved post — crediting either would
+  // let borrowed or invented phrasing read as the executive's own (03-05, 04-03).
+  const [transcript, samples] = await Promise.all([
+    getTranscript(c.env.DB, view.run.transcript_id),
+    listVoiceSamples(c.env.DB),
+  ]);
+  const sources = [
+    ...(transcript ? [transcript.body] : []),
+    ...samples.map((sample) => sample.body),
+  ];
+  const sourcesAvailable = sources.length > 0;
+
+  const body = draft.final_body ?? draft.body ?? "";
+  const segments = sourcesAvailable
+    ? groundingSegments(body, sources)
+    : // With nothing to check against, every line is unchecked — marking them
+      // all untraced would claim the model invented a post it may not have.
+      groundingSegments(body, []).map((segment) => ({ ...segment, kind: "plain" as const }));
+
+  const words = body.split(/\s+/).filter(Boolean).length;
+  const decision = draft.decision;
+  const pushed = draft.zernio_post_id !== null;
+  const canPush = decision === "accepted" || decision === "edited";
+
+  const tally = {
+    decided: view.drafts.filter((row) => row.decision !== null).length,
+    total: view.drafts.length,
+    edited: view.drafts.filter((row) => row.decision === "edited").length,
+    pushed: view.drafts.filter((row) => row.zernio_post_id !== null).length,
+  };
+
+  const accountId = (await getSetting(c.env.DB, ZERNIO_ACCOUNT_ID_KEY)) ?? "";
+  const prev = index > 0 ? index : written.length;
+  const next = index + 2 > written.length ? 1 : index + 2;
+  const action = `/runs/${id}/drafts/${draft.id}/decision`;
+
+  return c.html(
+    <Layout
+      title={`Pipeflick — approval`}
+      path="/runs"
+      crumb={`${tally.decided} of ${tally.total} decided`}
+    >
+      <style dangerouslySetInnerHTML={{ __html: citationCss(segments) }} />
+      <section>
+        <div class="pf-approve-head">
+          <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+            <span class="tag tag-accent tag-12">Step 3 · Approval</span>
+            <span style="font-size:15px;color:var(--color-neutral-700)">
+              {`Draft ${index + 1} of ${written.length}`}
+            </span>
+          </div>
+          <div class="pf-pager">
+            {written.map((_, n) => (
+              <a
+                class="pf-page"
+                href={`/runs/${id}/approve?draft=${n + 1}`}
+                aria-current={n === index ? "page" : undefined}
+              >
+                {String(n + 1)}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* Arrow-key targets. Real links, so they work without the script. */}
+        <a class="sr-only" data-k-prev href={`/runs/${id}/approve?draft=${prev}`}>
+          Previous draft
+        </a>
+        <a class="sr-only" data-k-next href={`/runs/${id}/approve?draft=${next}`}>
+          Next draft
+        </a>
+
+        <div class="pf-approve">
+          <div class="pf-draft-card" {...(editing ? { "data-editing": "true" } : {})}>
+            <div class="pf-draft-meta">
+              <span class="tag tag-accent">LinkedIn post</span>
+              <span class="tag tag-accent">{`${words} words`}</span>
+              <span class="pf-draft-hint">
+                {pushed
+                  ? "Sent to Zernio as an unscheduled draft"
+                  : "A accept · E edit · R reject · ← →"}
+              </span>
+            </div>
+
+            {editing ? (
+              <form method="post" action={action}>
+                <input type="hidden" name="return_draft" value={String(index + 1)} />
+                <div class="pf-edit">
+                  <textarea name="body" rows={14} maxlength={MAX_DECISION_BODY_CHARS} required>
+                    {body}
+                  </textarea>
+                  <p class="hint" style="margin:var(--space-2) 0 0">
+                    Both versions are kept: the model's original stays beside whatever you accept.
+                  </p>
+                </div>
+                <div class="pf-actions">
+                  <button type="submit" name="decision" value="accept" class="btn btn-primary btn-lg">
+                    Accept with edits
+                  </button>
+                  <a class="btn btn-ghost" href={`/runs/${id}/approve?draft=${index + 1}`}>
+                    Cancel
+                  </a>
+                </div>
+              </form>
+            ) : (
+              <>
+                <MarkedPost segments={segments} />
+                <div class="pf-actions">
+                  {decision === null ? (
+                    <>
+                      <form method="post" action={action} style="display:contents">
+                        <input type="hidden" name="return_draft" value={String(index + 1)} />
+                        <input type="hidden" name="body" value={body} />
+                        <button
+                          type="submit"
+                          name="decision"
+                          value="accept"
+                          class="btn btn-primary btn-lg"
+                          data-k-accept
+                        >
+                          Accept
+                        </button>
+                      </form>
+                      <a
+                        class="btn btn-secondary"
+                        href={`/runs/${id}/approve?draft=${index + 1}&edit=1`}
+                        data-k-edit
+                      >
+                        Edit
+                      </a>
+                      <form method="post" action={action} style="display:contents">
+                        <input type="hidden" name="return_draft" value={String(index + 1)} />
+                        <button
+                          type="submit"
+                          name="decision"
+                          value="reject"
+                          class="btn btn-ghost btn-danger"
+                          data-k-reject
+                        >
+                          Reject
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <>
+                      <span class={`pf-pill${decision === "rejected" ? " pf-pill-rejected" : ""}`}>
+                        {decision === "accepted"
+                          ? "Accepted, unchanged"
+                          : decision === "edited"
+                            ? "Accepted with your edits"
+                            : "Rejected"}
+                      </span>
+                      {canPush && !pushed && accountId !== "" ? (
+                        <form
+                          method="post"
+                          action={`/runs/${id}/drafts/${draft.id}/push`}
+                          style="display:contents"
+                        >
+                          <input type="hidden" name="return_draft" value={String(index + 1)} />
+                          <button type="submit" class="btn btn-secondary">
+                            Send to Zernio
+                          </button>
+                        </form>
+                      ) : (
+                        ""
+                      )}
+                      {canPush && !pushed && accountId === "" ? (
+                        <span class="hint">
+                          <a href="/zernio">Choose a LinkedIn account</a> to push this.
+                        </span>
+                      ) : (
+                        ""
+                      )}
+                      {pushed ? (
+                        <span class="hint">{`In Zernio as an unscheduled draft · ${draft.zernio_post_id}`}</span>
+                      ) : (
+                        ""
+                      )}
+                      <a
+                        class="btn btn-ghost"
+                        href={`/runs/${id}/approve?draft=${index + 1}&edit=1`}
+                        data-k-edit
+                      >
+                        Edit again
+                      </a>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <Evidence segments={segments} sourcesAvailable={sourcesAvailable} tally={tally} />
+        </div>
+
+        <p style="margin-top:var(--space-4)">
+          <a href={`/runs/${id}`}>Back to the run</a>
+        </p>
+      </section>
+      <script dangerouslySetInnerHTML={{ __html: KEY_SCRIPT }} />
+    </Layout>,
+  );
 });

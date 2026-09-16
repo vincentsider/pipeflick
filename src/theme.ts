@@ -122,6 +122,19 @@ a:hover { color: var(--color-accent-600); text-decoration: underline; }
 .btn-danger { color: var(--color-neutral-800); }
 .btn-danger:hover { background: var(--surface-untraced); color: var(--color-neutral-900); text-decoration: none; }
 
+/* Any button the older screens render without a class still belongs to the
+   system. Cheaper and safer than editing seven files to add a class, and it
+   means a new bare button can never look like a browser default. */
+button:not([class]), input[type="submit"]:not([class]) {
+  font-family: var(--font-heading); font-weight: 600; font-size: 14px; line-height: 1.2;
+  color: var(--color-text); cursor: pointer;
+  background: var(--surface-card); border: 1px solid var(--color-accent-300);
+  padding: var(--space-2) calc(var(--space-3) * 1.2); border-radius: var(--radius-md);
+  transition: background .18s ease, color .18s ease;
+}
+button:not([class]):hover, input[type="submit"]:not([class]):hover { background: var(--color-accent-100); }
+button:not([class]):disabled { opacity: .45; cursor: not-allowed; }
+
 /* --- tags --- */
 .tag {
   display: inline-flex; align-items: center; font-size: 11px;
@@ -364,6 +377,142 @@ export const SCREENS = `
 }
 .pf-cta-btn:hover { background: var(--color-accent-200); }
 .pf-cta-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* --- Run screen --- */
+.pf-split {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.8fr);
+  gap: clamp(24px, 4vw, 48px); align-items: start;
+}
+.pf-h1-run {
+  font-family: var(--font-heading); font-weight: 600;
+  font-size: clamp(34px, 4.6vw, 56px); line-height: 1; letter-spacing: -0.025em;
+  margin: var(--space-3) 0 0;
+}
+.pf-sub { font-size: 18px; line-height: 1.5; color: var(--color-neutral-800); margin: var(--space-3) 0 0; max-width: 52ch; }
+
+.pf-steps-card {
+  margin-top: var(--space-6); background: var(--surface-card);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden;
+}
+.pf-track { height: 6px; background: var(--color-accent-100); }
+.pf-fill { height: 6px; background: var(--color-accent-500); transition: width .6s ease; }
+.pf-steps-body { padding: var(--space-2) var(--space-4) var(--space-4); }
+.pf-step-row {
+  display: grid; grid-template-columns: 22px 110px 1fr auto;
+  gap: var(--space-3); align-items: center;
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--color-accent-100);
+}
+.pf-step-row:last-child { border-bottom: 0; }
+.pf-step-dot {
+  width: 18px; height: 18px; border-radius: 999px;
+  background: transparent; box-shadow: inset 0 0 0 1px var(--color-accent-400);
+}
+.pf-step-dot.is-done { background: var(--color-accent-600); }
+.pf-step-dot.is-working { background: var(--color-accent-300); animation: pf-pulse 1s ease-in-out infinite; }
+.pf-step-dot.is-failed { background: var(--color-neutral-700); box-shadow: inset 0 0 0 1px var(--color-neutral-700); }
+.pf-step-phase { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-600); }
+.pf-step-label { font-size: 17px; line-height: 1.35; }
+.pf-chip {
+  font-size: 12px; letter-spacing: .04em; text-transform: uppercase;
+  padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+  background: var(--color-accent-100); color: var(--color-neutral-700);
+}
+.pf-chip.is-done { color: var(--color-accent-800); }
+.pf-chip.is-working { background: var(--color-accent-200); color: var(--color-accent-800); }
+.pf-chip.is-failed { background: var(--surface-untraced); color: var(--color-neutral-900); }
+
+.pf-facts { display: flex; flex-direction: column; gap: var(--space-2); }
+.pf-fact { display: flex; justify-content: space-between; gap: var(--space-3); font-size: 15px; padding: var(--space-1) 0; }
+.pf-fact-k { color: var(--color-neutral-700); }
+.pf-aside { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* --- Approve screen --- */
+.pf-approve-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.pf-pager { display: flex; gap: var(--space-1); padding: 4px; border-radius: var(--radius-lg); background: var(--color-accent-100); }
+.pf-page {
+  font-family: var(--font-heading); font-size: 15px; min-width: 32px; height: 32px;
+  display: grid; place-items: center; border-radius: var(--radius-md);
+  background: transparent; color: var(--color-neutral-700); text-decoration: none;
+  transition: background .18s ease, color .18s ease;
+}
+.pf-page:hover { color: var(--color-accent-700); text-decoration: none; }
+.pf-page[aria-current="page"] { background: var(--surface-card); color: var(--color-accent-800); box-shadow: var(--shadow-sm); }
+
+.pf-approve {
+  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
+  gap: clamp(24px, 3.4vw, 44px); margin-top: var(--space-4); align-items: start;
+}
+.pf-draft-card {
+  background: var(--surface-card); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+.pf-draft-meta {
+  padding: var(--space-4) clamp(20px, 3vw, 40px) 0;
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+}
+.pf-draft-hint { margin-left: auto; font-size: 13px; color: var(--color-neutral-600); }
+.pf-draft-hook {
+  font-family: var(--font-heading); font-weight: 600;
+  font-size: clamp(28px, 3.1vw, 40px); line-height: 1.08; letter-spacing: -0.02em;
+  margin: var(--space-3) 0 0; padding: 0 clamp(20px, 3vw, 40px); max-width: 28ch;
+}
+.pf-draft-body {
+  font-size: 20px; line-height: 1.62;
+  padding: var(--space-4) clamp(20px, 3vw, 40px) 0; max-width: 62ch;
+}
+.pf-draft-body p { margin: 0 0 var(--space-4); text-wrap: pretty; }
+.pf-edit { padding: var(--space-4) clamp(20px, 3vw, 40px) 0; }
+.pf-edit textarea { font-size: 19px; line-height: 1.6; background: var(--color-accent-100); border-color: var(--color-accent-300); padding: var(--space-4); }
+
+/* Sentence marks. Buttons, so a tap focuses one and the citation follows on
+   touch as well as hover — the handoff asks for both. */
+.pf-seg {
+  /* inline, not inline-block: a sentence has to flow and wrap inside its
+     paragraph like text, not sit on a line of its own. */
+  display: inline;
+  font: inherit; color: inherit; text-align: left;
+  border: 0; padding: 0; margin: 0; background: transparent;
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.pf-seg-traced { background: var(--color-accent-100); box-shadow: inset 0 -2px 0 var(--color-accent-400); transition: background .15s ease; }
+.pf-seg-traced:hover { background: var(--color-accent-200); }
+/* Untraced stays full-strength ink: it must be marked AND legible. */
+.pf-seg-untraced { background: var(--surface-untraced); color: var(--color-text); box-shadow: inset 0 -2px 0 var(--color-neutral-700); transition: background .15s ease; }
+.pf-seg-untraced:hover { background: var(--surface-untraced-hover); }
+.pf-seg-plain { cursor: default; }
+
+.pf-actions {
+  margin-top: var(--space-4); padding: var(--space-4) clamp(20px, 3vw, 40px);
+  background: var(--surface-input);
+  display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;
+}
+.pf-pill {
+  display: inline-flex; align-items: center; gap: var(--space-2); font-size: 16px;
+  padding: 6px var(--space-3); border-radius: 999px;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+}
+.pf-pill-rejected { background: color-mix(in srgb, var(--color-neutral-900) 8%, #ffffff); color: var(--color-neutral-900); }
+
+.pf-evidence { position: sticky; top: 96px; display: flex; flex-direction: column; gap: var(--space-3); }
+.pf-meter { height: 6px; border-radius: 999px; background: var(--color-accent-900); margin: var(--space-3) 0 0; overflow: hidden; }
+.pf-meter-fill { height: 6px; background: var(--color-accent-300); transition: width .4s ease; }
+.pf-cite {
+  background: var(--surface-card); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md); padding: var(--space-4);
+}
+.pf-cite-untraced { background: color-mix(in srgb, var(--color-neutral-900) 7%, #ffffff); }
+.pf-cite-quote { font-size: 19px; line-height: 1.55; font-style: italic; margin: 0; }
+.pf-cite-meta { font-size: 13px; color: var(--color-neutral-700); margin: var(--space-3) 0 0; }
+/* Only one citation shows at a time; the rest are revealed by :has() rules
+   generated per draft in the page's own <style>. */
+.pf-cite-alt { display: none; }
+
+@media (max-width: 860px) {
+  .pf-hero, .pf-split, .pf-approve { grid-template-columns: minmax(0, 1fr); }
+  .pf-step-row { grid-template-columns: 22px 1fr; }
+  .pf-step-phase, .pf-chip { grid-column: 2; }
+  .pf-evidence { position: static; }
+}
 `;
 
 /** Everything, in cascade order. */
