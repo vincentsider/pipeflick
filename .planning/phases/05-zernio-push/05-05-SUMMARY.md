@@ -47,7 +47,7 @@ completed: 2026-09-16
 
 # Phase 05 Plan 05: Refused Push on the Approve Screen Summary
 
-**A push that Zernio refuses now shows Zernio's own message and code beside the draft on the Approve screen, with Send to Zernio offered again. Every push outcome returns the reader to that draft. The orphaned components that made the dead renderer look live are gone. Nothing is deployed.**
+**A push that Zernio refuses now shows Zernio's own message and code beside the draft on the Approve screen, with Send to Zernio offered again. Every push outcome returns the reader to that draft. The orphaned components that made the dead renderer look live are gone. Deployed to both Workers afterwards by the orchestrator (see Deploy).**
 
 ## Performance
 
@@ -189,7 +189,19 @@ It was also checked at 500px and 1280px. At 1280px the notice spans the row unde
 | No request reached zernio.com | by construction: `ENDPOINT`, the only fetch base, pointed at 127.0.0.1 for the whole stand-in session, with an invalid token as a backstop | the stand-in logged every push the route made (4 of 4) | n/a |
 | No request reached api.openai.com | by construction: `OPENAI_API_KEY` was empty during the stand-in session, and no `/step` POST was made in either session. Task 2's session used the real `.dev.vars` and made GET requests only, to routes that make no outbound calls | — | n/a |
 
-**Not deployed.** Neither Worker was deployed, and no remote D1 command was run. Production still serves the pre-05-05 Approve screen, and the gap is still live there until a deploy. The deploy is held for the user's decision on the public site Worker (05-VERIFICATION.md gap 2), which this plan does not touch.
+## Deploy (added by the orchestrator, after the plan)
+
+The executor did not deploy, as instructed; what follows was done afterwards, once the user had decided about the public site.
+
+- **Extra commit before deploy:** `e27e56f` changed the network-failure push message from "press Push to Zernio again" to "press Send to Zernio again". This was the executor's finding 3, and it falls under SCHED-03's "clear error", because the old message pointed at a button the page does not have.
+- **User decision (2026-09-16):** leave the public site as it is until 06-07. Both Workers were therefore deployed as they are built today.
+- **App** `pipeflick` (`npm run deploy`, `src/index.tsx`): `172124fb-ed97-4e2c-be5f-a674f5db9031` → **`67bbe1ff-cacb-4a87-823f-cad36f7ead78`**
+- **Site** `pipeflick-site` (`npx wrangler deploy -c wrangler.site.jsonc`, `src/public.tsx`): `736c88f0-41d0-4966-b63a-080ed16e9c78` → **`d917c919-7a18-42e7-bfd1-7942c7f9492f`**
+- Both confirmed at 100% with `wrangler deployments list`. No remote D1 command was run, and none was needed.
+- **Not observed on production:** no request was made to either hostname. The fixed Approve screen has been seen locally only.
+- The documented site deploy command (`npx wrangler deploy --name pipeflick-site` in CLAUDE.md and the README) builds `src/index.tsx`, so it would have closed the site against the user's decision. It was not used, and the docs still disagree with `wrangler.site.jsonc`. 06-07 owns that.
+
+**At the time the plan finished (superseded above):** neither Worker was deployed, and no remote D1 command was run. Production still serves the pre-05-05 Approve screen, and the gap is still live there until a deploy. The deploy is held for the user's decision on the public site Worker (05-VERIFICATION.md gap 2), which this plan does not touch.
 
 ## Decisions Made
 
@@ -246,7 +258,7 @@ None.
 ## Next Phase Readiness
 
 - **Ready for re-verification of gap 1.** The render check the verifier asked for passes locally: a seeded `zernio_error_code` row shows its message and code on `/runs/:id/approve`.
-- **Gap 2 is untouched, and the deploy is held on it.** Until both Workers are redeployed, production still has gap 1.
+- **Gap 2 is untouched by this plan.** The user deferred it to 06-07, and both Workers were redeployed as they are built (see Deploy). Production now carries the gap 1 fix.
 - **Still outstanding from 05-VERIFICATION human checks:**
   - **Check 1:** the first real push. Nothing has ever called `POST /v1/posts` on zernio.com.
   - **Check 2:** which bundle `pipeflick-site` serves.

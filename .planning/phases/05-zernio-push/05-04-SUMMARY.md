@@ -79,7 +79,7 @@ reconstructed: 2026-09-16
 
 ## Files Created/Modified
 
-- `src/runs.tsx` — the push route after the decision route; `PushState`, `PushForm`, `pushFailure`; `RunControl`'s paragraph now says a push creates an *unscheduled* Zernio draft and that scheduling and publishing stay manual
+- `src/runs.tsx` — the push route after the decision route; `PushState`, `PushForm` (both since orphaned by `b954dc5` and removed by 05-05), `pushFailure`; `RunControl`'s paragraph now says a push creates an *unscheduled* Zernio draft and that scheduling and publishing stay manual
 
 ## Verified on 2026-09-16 (re-run against the working tree)
 

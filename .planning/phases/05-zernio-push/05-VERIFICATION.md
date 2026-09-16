@@ -1,69 +1,59 @@
 ---
 phase: 05-zernio-push
-verified: 2026-09-16T12:13:21Z
-status: gaps_found
-score: "14/17 must-haves verified (2 failed, 1 needs a live observation)"
-gaps:
-  - truth: "A failed push shows a clear error (ROADMAP Phase 5 success criterion 3, second half; SCHED-03)"
-    status: failed
-    reason: "Regression introduced after 05-04 by b954dc5 (Broadsheet Run/Approve screens). The failure IS written to D1 (recordPushFailure), but no reachable screen renders it. PushState is the only reader of zernio_error_code / zernio_error_message, and it is rendered only by DraftSection. b954dc5 removed <DraftSection> from GET /runs/:id, so all three components are orphaned. The Approve screen is now the only place a push can be started, and it never reads the error columns: a failed push renders exactly like a never-pushed draft, a bare 'Send to Zernio' button. The route also redirects failures to /runs/:id, which no longer shows any draft or push state. Confirmed by behaviour: a seeded row with zernio_error_code = ACCOUNT_DISCONNECTED and a marker message rendered neither the code nor the message on /runs/:id/approve or /runs/:id."
-    artifacts:
-      - path: "src/runs.tsx"
-        issue: "GET /runs/:id/approve (L1973-2215) never reads draft.zernio_error_code or draft.zernio_error_message"
-      - path: "src/runs.tsx"
-        issue: "Push route failure branch (L1750) and 409-duplicate branch (L1740) redirect to `/runs/${runId}` rather than returnTo(pushForm, runId), which the success branch (L1728) uses. The user lands on the Run screen, which shows no push state"
-      - path: "src/runs.tsx"
-        issue: "PushState, PushForm and DraftSection (L651-827) are defined but never rendered. tsconfig has no noUnusedLocals, so tsc stays silent. pushTarget on GET /runs/:id (L1274-1276) is computed and never used: two wasted D1 reads per render"
-    missing:
-      - "On /runs/:id/approve, render the failed-push state beside the draft: Zernio's message and code in amber (.notice.warn), with Send to Zernio still offered as a one-click retry"
-      - "Redirect the failure and duplicate branches with returnTo(pushForm, runId), as the success branch already does"
-      - "Either reuse PushState on the Approve screen, or delete PushState/PushForm/DraftSection and the unused pushTarget reads, so a dead copy cannot again be mistaken for the live one"
-      - "Re-run the render check: a seeded draft with zernio_error_code set must show its message and code on /runs/:id/approve"
-  - truth: "The push is reachable only by the signed-in executive in every deployment of this code (success criterion 2's 'user clicks once' means the executive)"
-    status: failed
-    reason: "A FINDING AGAINST THE PHASE, NOT AGAINST THE PUSH CODE. The push route itself is unchanged and its guards still hold on every hostname: only accepted or edited drafts, only final_body, once per draft, and nothing can publish. What fails is the composition around it. Introduced after Phase 5 by 7e7e0c1 (2026-09-16T08:30:03Z), and already known and scheduled: ROADMAP Phase 6 criterion 5 and 06-07 ('Close the hole the demo opened'). src/public.tsx mounts health, settings, sources, fireflies, zernio and runs with no requireAccess; demoIdentity only sets email = 'Guest'. The only thing in front is csrf(), which is not authentication: Hono 4.13.7 passes a form POST whenever Sec-Fetch-Site is same-origin or Origin matches the host, and a non-browser client sets either at will. This verification's own local sweep did exactly that with curl on every guard case. On that Worker, anyone with the URL can: accept or reject any draft (the decision route is mounted too, so the precondition is theirs to create); push it into the operator's real Zernio account as an unscheduled draft; change zernio.account_id via POST /zernio (bounded: the route re-lists accounts and refuses ids the token does not own); read stored transcripts; and spend OpenAI credit on runs. The worst Zernio outcome is an unwanted unscheduled draft, never a published post. WHETHER THIS IS LIVE IS INFERRED, NOT OBSERVED. Two facts support it: the gitignored wrangler.site.jsonc and the committed wrangler.site.example.jsonc both set main = src/public.tsx for pipeflick-site, and the live version 736c88f0 (version created 08:35:21Z, deployment 08:35:23Z) went up five minutes after 7e7e0c1. No request was made to the public hostname, and version metadata does not name the entry point (human check 2)."
-    artifacts:
-      - path: "src/public.tsx"
-        issue: "Mounts health, settings, sources, fireflies, zernio and runs (including POST /runs/:id/drafts/:draftId/decision and /push) with no Access gate"
-      - path: "wrangler.site.example.jsonc"
-        issue: "main: src/public.tsx for name pipeflick-site (the gitignored wrangler.site.jsonc says the same)"
-      - path: "CLAUDE.md"
-        issue: "Says the public site is the same code with every route except / returning 403 from requireAccess, and gives `npx wrangler deploy --name pipeflick-site` as its deploy command. That command would build index.tsx from wrangler.jsonc, contradicting wrangler.site.example.jsonc. The two instructions disagree about what is public"
-      - path: "README.md"
-        issue: "L32-34 make the same '/ only, the rest 403s' claim"
-    missing:
-      - "Confirm which bundle is live on pipeflick-site (one unauthenticated GET /runs: 403 means safe, 200 means exposed)"
-      - "If exposed: redeploy pipeflick-site from src/index.tsx now, or strip src/public.tsx to the landing page (06-07's target shape) now, rather than waiting for the rest of Phase 6"
-      - "Do not rely on csrf() as a gate anywhere: it is a cross-site defence, not authentication"
-      - "Make CLAUDE.md, README.md and the site wrangler template agree on which entry point the public Worker is built from"
+verified: 2026-09-16T14:16:03Z
+status: human_needed
+score: "15/17 must-haves verified (1 deferred to 06-07 by user decision, 1 needs a live observation)"
+re_verification:
+  previous_status: gaps_found
+  previous_score: "14/17 (2 failed, 1 needs a live observation)"
+  previous_verified: 2026-09-16T12:13:21Z
+  gaps_closed:
+    - "A failed push shows a clear error (SC3, second half; SCHED-03). Closed by 05-05 (e9781b1, 822c739), with e27e56f on the failure wording. Re-proven by reading the code and by driving the route against a local stand-in"
+  gaps_remaining: []
+  deferred:
+    - truth: "The push is reachable only by the signed-in executive in every deployment of this code"
+      decision: "Deferred to 06-07 by user decision (2026-09-16). The public site is left as-is, and pipeflick-site was deliberately redeployed from src/public.tsx"
+      status: "Not closed. Not an open gap blocking Phase 5. Finding and evidence kept below"
+  regressions: []
+gaps: []
 human_verification:
-  - test: "On the gated app: open /zernio and confirm your LinkedIn account is listed and chosen. On /runs/<id>/approve, accept a draft, then press Send to Zernio"
-    expected: "The draft shows 'In Zernio as an unscheduled draft · <id>'. In Zernio the post exists under the right LinkedIn account with exactly the approved text, and is NOT scheduled and NOT published. Pressing again from a stale tab is refused (400 'already in Zernio')"
-    why_human: "POST /v1/posts has never been called by anything. Production D1 has 6 drafts, 0 accepted or edited, and 0 push attempts (zernio_pushed_at is NULL on every row). It creates a real item in a real external account, and the 201 / 409 / 403 handling has only been read, never driven"
-  - test: "Unauthenticated GET /runs on the public pipeflick-site hostname"
-    expected: "403 'Access required' (index.tsx). A 200 means src/public.tsx is live and gap 2 is live too"
-    why_human: "The real hostname is not in the repo, and `wrangler versions view` does not name the entry point"
+  - test: "On the gated app (version 67bbe1ff): open /zernio and confirm your LinkedIn account is listed and chosen. On /runs/<id>/approve, accept a draft unchanged, then press Send to Zernio. Then open Zernio"
+    expected: "The draft shows 'In Zernio as an unscheduled LinkedIn draft: not scheduled, and not published' with the Zernio id and time, and no button. In Zernio the post sits under the right LinkedIn account with exactly the approved text, NOT scheduled and NOT published. The pill reads 'Accepted, unchanged' (04-02's CRLF check). Re-submitting from a stale tab is refused. If Zernio refuses instead, the reason and code appear beside the draft with Send to Zernio offered again"
+    why_human: "POST /v1/posts has never been called against zernio.com. Production D1 at 14:16Z: 6 drafts, 0 decided, 0 push attempts. The call creates a real item in a real external account, and the 403/409/500 shapes have only been exercised against a stand-in built from the spec"
   - test: "Open /health on the gated app"
     expected: "Green, with OPENAI_API_KEY, FIREFLIES_API_KEY and ZERNIO_USER_TOKEN shown as set"
-    why_human: "Access returns 302 for unauthenticated requests before the Worker runs. /health is now five deploys unobserved"
+    why_human: "Access returns 302 for unauthenticated requests before the Worker runs. Still unobserved, including after the 14:11Z deploy"
 ---
 
 # Phase 5: Zernio Push Verification Report
 
 **Phase Goal:** An accepted draft reaches Zernio as an unscheduled LinkedIn post with one click
-**Verified:** 2026-09-16T12:13:21Z
-**Status:** gaps_found
-**Re-verification:** No (initial verification). The 05-04 SUMMARY was reconstructed on 2026-09-16 and was treated as a claim, not as evidence.
+**Verified:** 2026-09-16T14:16:03Z
+**Status:** human_needed
+**Re-verification:** Yes, after gap closure (05-05). The previous report (12:13Z, gaps_found, 14/17) is superseded. Its findings are kept below where they still apply.
 
 > **How to read this report.** This project separates three levels of evidence, and so does every
 > table below:
-> - **In codebase:** read in the working tree at HEAD `0786276`.
-> - **Driven locally (this verification):** exercised against `wrangler dev` on a scratch D1 in
->   the session scratchpad. The project's `.wrangler/state` and working tree were not touched.
+> - **In codebase:** read in the working tree at HEAD `e27e56f`.
+> - **Driven locally (this verification):** exercised against `wrangler dev` running a **copy** of
+>   `src/` in the session scratchpad, with its own scratch D1 and a fake token. Zernio was replaced
+>   by a Node stand-in on 127.0.0.1. The project's working tree, `.dev.vars` and local D1 were not
+>   touched.
 > - **Observed live:** seen on production by a person.
 >
-> **Nothing in Phase 5's push path has reached the third level.** `POST /v1/posts` has never been
-> called against the real Zernio service, and production D1 confirms it: zero push attempts.
+> **Nothing in Phase 5's push path has reached the third level.** `POST /v1/posts` has still never
+> been called against zernio.com. Production D1 has no decided draft and no push attempt.
+
+## What Changed Since the Previous Report
+
+| Commit | Change | Re-proven here |
+|--------|--------|----------------|
+| `e9781b1` | `ZernioStatus` / `SendToZernio` on `/runs/:id/approve`: pushed → refused → not accepted → control. Duplicate and failure branches redirect with `returnTo(pushForm, runId)`. The account label is read beside the id | Read. Rendered from seeded rows. Driven through the route with a stand-in |
+| `822c739` | Removed `DraftSection`, `PushState`, `PushForm`, `GroundingPanel`, `FlaggedLines`, `parseGrounding`, `StoredGrounding`, `DecisionRecord`, `DecisionForm`, `DECISION_LABEL`, and the unused settings reads on `GET /runs/:id` | Each name has 0 whole-word references in `src/` and `test/`. No top-level declaration in `runs.tsx` is referenced fewer than 2 times. `tsc` exits 0 |
+| `e27e56f` | The network-failure message says "Send to Zernio" (the real button) | Driven: a dropped connection rendered "…then press Send to Zernio again…" beside a button labelled Send to Zernio |
+| Deploys | App `172124fb` → `67bbe1ff` (14:11:32Z). Site `736c88f0` → `d917c919` (14:11:51Z), built with `-c wrangler.site.jsonc`, i.e. from `src/public.tsx` | Both at 100% (`wrangler deployments list`). Created 25 s and 44 s after `e27e56f` (14:11:07Z). Bundles not diffed, so "contains e27e56f" is inferred |
+
+`git diff 0786276 HEAD` touches **only `src/runs.tsx`** among code files. `src/zernio.ts`, `src/db.ts`, `src/zernio-routes.tsx`, `src/index.tsx`, `src/public.tsx`, `src/layout.tsx`, `test/`, `migrations/`, CLAUDE.md and README.md are byte-identical to the previous verification. So the earlier evidence for them stands, and they got a regression check rather than a full re-check.
 
 ## Goal Achievement
 
@@ -71,202 +61,201 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | User sees whether the Zernio connection works (SC1) | ✓ VERIFIED | `GET /zernio` (`src/zernio-routes.tsx:185`) uses `listLinkedInAccounts` as the connection check. It shows "Connected to Zernio — N LinkedIn accounts", or a warning when there are zero. Live evidence is **inferred, not reported**: production settings hold `zernio.account_id`, written 2026-09-15T15:21:23Z, and `POST /zernio` can only write it after a successful `GET /v1/accounts` |
-| 2 | A missing key, a bad key and an outage each show a distinct message | ✓ VERIFIED | Missing key → 500 page pointing at /health, with no request made. A 401 → `BadKeyPage` explaining the `sk_` format and `secrets:push`. Any other `ZernioError` or a network error → 502 with Zernio's code, never a stack trace |
-| 3 | The LinkedIn account is chosen once and remembered | ✓ VERIFIED | `POST /zernio` shape-checks the id, re-lists accounts, trusts only ids Zernio returned, and stores `zernio.account_id` and `zernio.account_label`. `GET` pre-checks the stored account and warns when it has disappeared |
-| 4 | One click on an accepted draft puts it in Zernio as an unscheduled LinkedIn post (SC2) | ? HUMAN | On the **gated** app. (On the public site Worker anyone can make this click; see truth 15 and the finding below.) Wired end to end in code: Approve form → push route → `createLinkedInDraft` → `recordPush` → 303 back to the draft. **Never exercised against Zernio**: production has 0 approved drafts and 0 push attempts |
-| 5 | No code path can publish: `isDraft: true` is sent, and `publishNow`, `scheduledFor` and `queuedFromProfile` are never constructed | ✓ VERIFIED | `buildDraftRequest` (`src/zernio.ts:132`) is the only body builder. The three field names appear in `src/` only in comments (`zernio.ts:120`, `runs.tsx:1645-1646`). The mutation run killed 10 of 11 mutants; one survivor is described under Anti-Patterns |
-| 6 | The Zernio client never reads the environment, and the key never reaches an error or a log | ✓ VERIFIED | No `c.env`, `process.env` or `console` in `src/zernio.ts`. The token is a function argument. `scrubToken` removes `sk_…` from Zernio messages, and no error message is built from request data. Only `zernio-routes.tsx:186,216` and `runs.tsx:1677` read the binding |
-| 7 | Only an `accepted` or `edited` draft can be pushed | ✓ VERIFIED | Route guard at `runs.tsx:1696`. **Driven locally:** a rejected draft and an undecided draft both got 400 with D1 unchanged. The Approve screen shows no push control on either (rendered HTML checked) |
-| 8 | What reaches Zernio is `final_body`, never `body` | ✓ VERIFIED | `const post = draft.final_body ?? ""` (L1700), passed unmodified to `createLinkedInDraft` (L1723). `body` is never read in the route. A test pins pass-through without trimming or truncation |
-| 9 | A draft already in Zernio cannot be pushed twice | ✓ VERIFIED | Route guard at L1707. **Driven:** 400 "already in Zernio as zp_seed_already", D1 unchanged. The Approve screen hides the button once `zernio_post_id` is set (checked) |
-| 10 | A push is scoped to its run: a draft id from another run writes nothing | ✓ VERIFIED | **Driven:** `POST /runs/A/drafts/<id in run B>/push` → 404, and run B's row was byte-identical afterwards. The 404 fires at the `getRunView(runId)` lookup. The second line of defence is `recordPush`/`recordPushFailure`, whose UPDATE is `WHERE id = ? AND run_id = ?`; a false return becomes a 404 at all three call sites (L1725, L1737, L1747) |
-| 11 | A successful push records the Zernio id and time, and clears **both** error columns | ✓ VERIFIED | `db.ts:851-853` sets `zernio_post_id`, `zernio_pushed_at`, `zernio_error_code = NULL`, `zernio_error_message = NULL` |
-| 12 | A failed push records the reason without losing an earlier post id | ✓ VERIFIED | `db.ts:882-883` touches only the error columns and the timestamps. `zernio_post_id` is not in the SET list. The message is capped at `MAX_ERROR_MESSAGE` (500) |
-| 13 | The draft shows its pushed state and Zernio id (SC3, first half) | ✓ VERIFIED | Approve screen L2091-2092 and L2186-2187. **Driven:** a seeded pushed row rendered "Sent to Zernio as an unscheduled draft" and "In Zernio as an unscheduled draft · zp_seed_already", with no push button |
-| 14 | A failed push shows a clear error (SC3, second half) | ✗ FAILED | No reachable screen renders the error columns. See Gap 1 |
-| 15 | The push is reachable only by the signed-in executive, in every deployment | ✗ FAILED: a finding against the phase, not the push code. In code: re-proven. Live: inferred | `src/public.tsx` mounts the push, decision and `/zernio` routes with no gate; `csrf()` is not authentication. The push route's guards still hold there. See Gap 2 and the finding below |
-| 16 | Migration 0006 is applied to local and remote D1 | ✓ VERIFIED | `wrangler d1 migrations list` reports "No migrations to apply" for both. `pragma_table_info('drafts')` shows all four `zernio_*` columns in both databases |
-| 17 | The push code is deployed | ✓ VERIFIED (by inference) | The live app version was created 2026-09-16T08:35:03Z, after every push commit (`5b57a56`, `3d26e6a`) and after `b954dc5`. So production almost certainly carries the Approve screen **and Gap 1**. The bundle was not diffed. `c3172a6` (UI only) was committed 24-42 s after the two deploys, so whether it is in the bundle is unknown and irrelevant to the push |
+| 1 | User sees whether the Zernio connection works (SC1) | ✓ VERIFIED | `GET /zernio` unchanged (connection check = account list). Live evidence is **inferred, not reported**: production `zernio.account_id` was written 2026-09-15T15:21:23Z, which `POST /zernio` can do only after a successful `GET /v1/accounts` |
+| 2 | A missing key, a bad key and an outage each show a distinct message | ✓ VERIFIED | Unchanged: 500 + /health, `BadKeyPage` on 401, 502 with code otherwise |
+| 3 | The LinkedIn account is chosen once and remembered | ✓ VERIFIED | Unchanged. The Approve screen now names it too: "…draft for Verifier Label" rendered from settings |
+| 4 | One click on an accepted draft puts it in Zernio as an unscheduled LinkedIn post (SC2) | ? HUMAN | Complete and driven end to end against a stand-in (201 → pushed, 303 back to the draft). **Never run against Zernio.** On the gated Worker this is the executive's click. On the site Worker anyone can make it (truth 15, deferred) |
+| 5 | No code path can publish: `isDraft: true`, never `publishNow` / `scheduledFor` / `queuedFromProfile` | ✓ VERIFIED | `src/zernio.ts` unchanged, and the field names appear in `src/` only in comments. **Captured outbound bodies (7 of 7):** keys exactly `content, isDraft, platforms`, `isDraft: true`, `platforms: [{platform: "linkedin", accountId: <configured>}]`, no publishing field anywhere in the raw body. Pin: 10 of 11 mutants killed (one known survivor, below) |
+| 6 | The client never reads the environment; the key never reaches an error or a log | ✓ VERIFIED | Unchanged. **Driven:** a stand-in 500 whose error text contained `sk_abcdef0123456789` rendered as "Upstream failure for the configured key token (http_500)" |
+| 7 | Only an `accepted` or `edited` draft can be pushed | ✓ VERIFIED | Route guard unchanged (L1290). Approve screen: `ZernioStatus` offers the control only when `sendable`. A rejected draft, an undecided draft, and a draft rejected after a refused push all rendered with no push form |
+| 8 | What reaches Zernio is `final_body`, never `body` | ✓ VERIFIED | **Driven:** for an `edited` draft whose `body` was "ORIGINAL BODY 305 must never be sent", the stand-in received content whose SHA-256 matched `final_body`, not `body` |
+| 9 | A draft already in Zernio cannot be pushed twice | ✓ VERIFIED | **Driven:** a re-press on a pushed draft returned 400 "already in Zernio as zp_standin_409", and the stand-in's request count stayed at 7. The pushed state renders no form |
+| 10 | A push is scoped to its run | ✓ VERIFIED | Route and `db.ts` unchanged since the previous report, where the cross-run 404 (row untouched) was driven |
+| 11 | A success records the id and time and clears **both** error columns | ✓ VERIFIED | **Driven:** a draft refused three times (403, 409 without id, 500), then answered 409 **with** `existingPostId`, ended with `zernio_post_id = zp_standin_409` and both error columns NULL. A draft refused by a dropped connection, then answered 201, ended with `zp_standin_201` and both NULL |
+| 12 | A failure records the reason without losing an earlier post id | ✓ VERIFIED | `db.ts` unchanged: `zernio_post_id` is not in `recordPushFailure`'s SET list. (Not driven: the route refuses to push an already-pushed draft, so no failure can follow a success.) |
+| 13 | The draft shows its pushed state and Zernio id (SC3, first half) | ✓ VERIFIED | **Driven:** "In Zernio as an unscheduled LinkedIn draft: not scheduled, and not published. Zernio id … · 2026-09-16 14:14". The card hint reads "In Zernio as an unscheduled draft, not published". No form |
+| 14 | **A failed push shows a clear error (SC3, second half)** | ✓ VERIFIED (**was ✗, gap closed**) | See "Gap 1: Re-proven" below |
+| 15 | The push is reachable only by the signed-in executive, in every deployment | ⏸ DEFERRED to 06-07 by user decision (2026-09-16) | Not closed. `src/public.tsx` is unchanged and live on `pipeflick-site` (`d917c919`, built from it deliberately). Finding kept below |
+| 16 | Migration 0006 applied to local and remote D1 | ✓ VERIFIED | Remote: "No migrations to apply" (re-run during this verification). Local: unchanged at 7 applied |
+| 17 | The push code, including the gap-1 fix, is deployed | ✓ VERIFIED (by inference) | `67bbe1ff` at 100%, created 14:11:32Z, after `e9781b1`, `822c739` and `e27e56f`. Bundle not diffed against HEAD |
 
-**Score:** 14/17 verified · 2 failed · 1 needs human observation
+**Score:** 15/17 verified · 1 deferred (user decision, not blocking) · 1 needs a live observation
+
+### Gap 1: Re-proven
+
+**In codebase:**
+- `ZernioStatus` (`src/runs.tsx:1667-1714`) reads `zernio_error_code` and `zernio_error_message` (L1701-1706). It renders them in `.notice.warn` with the code in parentheses, followed by `SendToZernio` while the draft is still accepted or edited.
+- It is rendered from the Approve screen's decided branch (L1925).
+- All three push outcomes redirect with `returnTo(pushForm, runId)` (L1322, L1334, L1346).
+- The only readers of the error columns in `src/` are now in live code.
+
+**Rendered from seeded rows (scratch D1):**
+
+| Draft state | Push form | Warn notice | Message | Code | Other |
+|-------------|:---------:|:-----------:|:-------:|:----:|-------|
+| Refused, still accepted | ✓ | ✓ | ✓ marker | ✓ `(ACCOUNT_DISCONNECTED)` | Hint names "Verifier Label"; `return_draft=1` |
+| Refused, then rejected | – | ✓ | ✓ marker | ✓ `(http_500)` | No retry button (the route would 400) |
+| Refused, **no account chosen** | – | ✓ | ✓ marker | ✓ | "Choose a LinkedIn account" link instead of a form |
+| Pushed | – | – | – | – | "not scheduled, and not published", id and time |
+| Pushable (accepted / edited) | ✓ | – | – | – | "…unscheduled LinkedIn draft for Verifier Label. Scheduling and publishing stay manual, in Zernio." |
+| Over-length (3001) | – | ✓ | "This post is 3001 characters and LinkedIn allows 3000…" | – | No form |
+| Rejected / undecided | – | – | – | – | Nothing push-related |
+| Run screen `/runs/:id` | – | – | – | – | No push state (by design since `b954dc5`); 200 |
+
+**Driven through the route (stand-in on 127.0.0.1, fake token; every POST carried `Origin`):**
+
+| Stand-in answer | Redirect | What the Approve screen then showed |
+|-----------------|----------|-------------------------------------|
+| 403 `ACCOUNT_DISCONNECTED` | 303 → `/runs/:id/approve?draft=4` | "This social account has been disconnected. Reconnect LinkedIn in the Zernio dashboard, then choose the account again on /zernio — …" `(ACCOUNT_DISCONNECTED)`, then the form |
+| 409, no `existingPostId` | 303 → `…?draft=4` | "…Zernio already has this exact text from the last 24 hours but returned no id for it…" `(duplicate)`, then the form |
+| 500 with a key-shaped fragment | 303 → `…?draft=4` | "Upstream failure for the configured key token" `(http_500)`, then the form |
+| 409 **with** `existingPostId` | 303 → `…?draft=4` | Pushed, `zp_standin_409`, no form. D1 error columns back to NULL |
+| Connection dropped | 303 → `…?draft=5` | "The push did not complete… press **Send to Zernio** again…" `(push_failed)`, then the form |
+| 201 | 303 → `…?draft=5` | Pushed, `zp_standin_201`, no form. D1 error columns back to NULL |
+| 403, **no** `return_draft` | 303 → `/runs/:id` | (fallback unchanged; row recorded as `ACCOUNT_DISCONNECTED`) |
+| (re-press on pushed draft) | 400 "already in Zernio as zp_standin_409" | Stand-in received nothing |
+
+**The captured outbound request body**, which 05-04 required and never recorded, is now captured. All 7 requests carried the fake bearer token (checked as a boolean) and an `x-request-id`. Each body was exactly:
+```
+{ content: <the draft's final_body>, isDraft: true,
+  platforms: [ { platform: "linkedin", accountId: "<configured id>" } ] }
+```
+with no `publishNow`, `scheduledFor` or `queuedFromProfile` anywhere in the raw text.
+
+**Containment:**
+- **Only one Zernio address:** the only Zernio fetch base in the scratch copy was the stand-in. `https://zernio.com` remained only in a comment.
+- **No real keys:** the scratch `.dev.vars` held a fake Zernio token and empty OpenAI and Fireflies keys.
+- **No other outbound routes used:** no `/step` or `/fireflies` request was made.
+- **Clean-up and state checks:**
+  - Both processes were stopped and the scratch tree deleted.
+  - The project's `src/zernio.ts` equals HEAD, and `src`, `test` and `migrations` are clean against HEAD.
+  - The project's local D1 row counts and settings timestamps match the pre-run baseline exactly (settings 4, migrations 7, everything else 0).
+- **No production traffic:** no request was made to zernio.com, api.openai.com or either production hostname. Only read-only Cloudflare API calls were made: deployments, and D1 migrations and counts.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/zernio.ts` | Client: account list, draft creation, typed errors (≥120 lines) | ✓ VERIFIED | 267 lines. Exports `listLinkedInAccounts`, `createLinkedInDraft`, `buildDraftRequest`, `ZernioError`, `MAX_LINKEDIN_CHARS`, `LINKEDIN_PLATFORM`. No stubs. A fresh `x-request-id` per call. A 200 replay and a 409 are both handled |
-| `test/zernio.test.ts` | Publish-safety pin (contains `isDraft`) | ✓ VERIFIED | 7 tests, all passing. Covers the object shape, the serialised form, the source-level field check and the source-level env check. See the mutation results below |
-| `migrations/0006_push.sql` | Four push columns | ✓ VERIFIED | Four `ALTER TABLE drafts ADD COLUMN`, all nullable. Applied to local and remote D1 |
-| `src/db.ts` | `recordPush`, `recordPushFailure`, `DraftView` widened, **imports nothing** | ✓ VERIFIED | No `import` or `require` anywhere in the file. `ZERNIO_ACCOUNT_ID_KEY`/`_LABEL_KEY` exported. `getRunView` projection includes the four columns (L658) |
-| `src/zernio-routes.tsx` | `GET`/`POST /zernio` (≥90 lines) | ✓ VERIFIED | 251 lines. In the **gated** app, mounted at `index.tsx:50` after `requireAccess` (L30) and `csrf()` (L34). `src/public.tsx:57` mounts the same router with **no** gate (Gap 2) |
-| `src/layout.tsx` | Zernio in nav | ✓ VERIFIED | `{ href: "/zernio", label: "Zernio" }` (L27) |
-| `src/runs.tsx`: push route | `POST /runs/:id/drafts/:draftId/push` containing `createLinkedInDraft` | ✓ VERIFIED | L1664-1752. Nine guards in the plan's order, 409-with-id recorded as success, other errors recorded via `pushFailure` |
-| `src/runs.tsx`: Approve screen push control | Button on an accepted draft; pushed / failed / pushable / hidden states | ⚠️ PARTIAL | Button, pushed state and hidden-on-rejected/undecided are present. **Failed state missing.** The button does not name the destination account |
-| `src/runs.tsx`: `PushState`, `PushForm`, `DraftSection` | 05-04 Task 2 render components | ⚠️ ORPHANED | Defined, never rendered since `b954dc5`. The 05-04 SUMMARY still describes them as the live render ("a refused push renders amber with Zernio's own message and code, and the button comes back"), which has not been true since that commit |
+| `src/zernio.ts` | Client, typed errors, draft-only body (≥120 lines) | ✓ VERIFIED | Unchanged, 267 lines |
+| `test/zernio.test.ts` | Publish-safety pin | ✓ VERIFIED | Unchanged. 75/75 suite passes |
+| `migrations/0006_push.sql` | Four push columns | ✓ VERIFIED | Applied local and remote |
+| `src/db.ts` | `recordPush` / `recordPushFailure`, widened `DraftView`, **imports nothing** | ✓ VERIFIED | Unchanged. 0 import lines |
+| `src/zernio-routes.tsx` | `GET`/`POST /zernio` | ✓ VERIFIED | Unchanged. Gated in `index.tsx`, **ungated in `public.tsx`** (deferred finding) |
+| `src/runs.tsx`: push route | Nine guards, then one draft | ✓ VERIFIED | Guards unchanged. All outcomes return to the draft |
+| `src/runs.tsx`: `ZernioStatus`, `SendToZernio` | The push state and control on the Approve screen | ✓ VERIFIED | Four states, driven (was ⚠️ PARTIAL) |
+| `src/runs.tsx`: former `PushState` / `PushForm` / `DraftSection` | — | ✓ REMOVED | Were ⚠️ ORPHANED. 0 references now |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|----|--------|---------|
-| `src/zernio.ts` | `https://zernio.com/api/v1` | `fetch`, `Authorization: Bearer <arg>` | ✓ WIRED | `/accounts?platform=linkedin&status=connected` (GET), `/posts` (POST) |
-| `test/zernio.test.ts` | `buildDraftRequest` | asserts `isDraft === true` and the 3 fields absent | ✓ WIRED | 10 of 11 mutants killed |
-| `src/db.ts recordPush` / `recordPushFailure` | `drafts` | `WHERE id = ?N AND run_id = ?M`, `meta.changes === 1` | ✓ WIRED | Both writers |
-| `src/db.ts getRunView` | `drafts.zernio_*` | widened projection | ✓ WIRED | L658 |
-| `src/zernio-routes.tsx` | `listLinkedInAccounts` | `c.env.ZERNIO_USER_TOKEN` as argument | ✓ WIRED | L194, L233 |
-| `src/zernio-routes.tsx` | `settings` | `setSetting(ZERNIO_ACCOUNT_ID_KEY)` | ✓ WIRED | L246-248 |
-| `src/index.tsx` (gated app only) | `zernio`, `runs` routers | `app.route("/", …)` behind `requireAccess` + `csrf` | ✓ WIRED | CSRF driven: a POST with no Origin header → 403, and a POST with a client-set Origin header → passes. CSRF is not authentication |
-| push route | `createLinkedInDraft` | token + `zernio.account_id` from settings | ✓ WIRED | L1723 |
-| push route | `recordPush` / `recordPushFailure` | returned id / `pushFailure(error)`; false → 404 | ✓ WIRED | L1724, L1736, L1746 |
-| push route | `drafts.final_body` | decision-guarded | ✓ WIRED | L1696-1703 |
-| Approve screen | push route | `<form action=/runs/:id/drafts/:draftId/push>` + `return_draft` | ✓ WIRED | L2166-2175. Success returns to the same draft via `returnTo` |
-| Approve screen | `zernio_post_id` | render | ✓ WIRED | Driven |
-| Approve screen | `zernio_error_code` / `zernio_error_message` | render | ✗ NOT WIRED | **Gap 1** |
-| push route failure/duplicate | Approve screen | redirect | ✗ NOT WIRED | Goes to `/runs/:id`, which shows no push state |
-| `src/public.tsx` (pipeflick-site) | `runs` (decision + push), `zernio`, `sources`, `settings`, `fireflies`, `health` | mounted after `demoIdentity` (sets "Guest") + `csrf` only | ⚠️ WIRED, and that is the problem | **Gap 2**: the push is not gated on this Worker |
+| `src/zernio.ts` | Zernio `/v1/posts`, `/v1/accounts` | `fetch`, Bearer from argument | ✓ WIRED | Body shape captured (stand-in) |
+| `test/zernio.test.ts` | `buildDraftRequest` | shape and source assertions | ✓ WIRED | 10 of 11 mutants killed |
+| `recordPush` / `recordPushFailure` | `drafts` | `WHERE id AND run_id`, `changes === 1` → 404 | ✓ WIRED | Unchanged |
+| `getRunView` | `drafts.zernio_*` | projection | ✓ WIRED | Unchanged |
+| `src/zernio-routes.tsx` | `listLinkedInAccounts`, settings | token argument, `ZERNIO_ACCOUNT_ID_KEY` | ✓ WIRED | Unchanged |
+| `src/index.tsx` (gated Worker) | `zernio`, `runs` | behind `requireAccess` + `csrf` | ✓ WIRED | Unchanged |
+| push route | `createLinkedInDraft` → `recordPush` / `recordPushFailure` | returned id / `pushFailure` | ✓ WIRED | Driven through all outcomes |
+| push route (all outcomes) | Approve screen | `returnTo(pushForm, runId)` | ✓ WIRED | **was ✗ for failure and duplicate** |
+| Approve screen | `zernio_error_code` / `_message` | `ZernioStatus` | ✓ WIRED | **was ✗ NOT WIRED** |
+| Approve screen | `zernio_post_id`, `zernio_pushed_at` | `ZernioStatus` | ✓ WIRED | Driven |
+| Approve screen | `zernio.account_label` | one settings read per render | ✓ WIRED | Hint names the account |
+| `src/public.tsx` (site Worker) | `runs`, `zernio`, … | no `requireAccess` | ⏸ DEFERRED | Live on `d917c919` by user decision |
 
 ### Requirements Coverage
 
-| Requirement | Status | Blocking issue |
-|-------------|--------|----------------|
-| SCHED-01: App connects to Zernio with configured credentials | ✓ SATISFIED (code); live success inferred from the production settings row, never reported | None |
-| SCHED-02: One-click push of an accepted draft as an unscheduled LinkedIn post | ? NEEDS HUMAN | Complete in code, and every guard except the missing-token one has been driven locally. Never run against Zernio. On the public site Worker, "user" is anyone with the URL (Gap 2) |
-| SCHED-03: User sees whether the push succeeded; the draft records pushed state and Zernio id | ✗ BLOCKED | Success and the stored id are visible. A **failure is recorded but never shown** (Gap 1) |
+| Requirement | Status | Note |
+|-------------|--------|------|
+| SCHED-01: App connects to Zernio with configured credentials | ✓ SATISFIED | Live success inferred from the production settings row, never reported |
+| SCHED-02: One-click push of an accepted draft as an unscheduled LinkedIn post | ? NEEDS HUMAN | Complete in code and driven against a stand-in. Never run against Zernio |
+| SCHED-03: User sees whether the push succeeded; draft records pushed state and Zernio id | ✓ SATISFIED (code + driven locally) | Success, id, time and refusals all render beside the draft. Not yet seen live, since no push has happened |
 
-`REQUIREMENTS.md` still lists all three as Pending. That is correct until the gaps close and the push is observed.
+### Deferred: The Push Is Not Gated on the Public Site Worker
 
-### Behaviour Driven Locally (this verification)
+**Status: deferred to 06-07 by user decision (2026-09-16).** It is not closed, and it is not an open gap blocking this phase. The user chose to leave the public site as-is until 06-07, and `pipeflick-site` was deliberately redeployed from `src/public.tsx` (`d917c919`, 14:11:51Z). **This does not fail the push code:** the route and its guards are identical on both Workers. **This report does not claim the push is gated: it is gated only on the `pipeflick` Worker.**
 
-`wrangler dev` ran on a scratch D1 (`--persist-to` in the session scratchpad), seeded with two runs and seven drafts, one per state. Every POST was chosen to fail a guard **before** the Zernio call, so no outbound request was possible. The scratch state was deleted afterwards. The project's local D1 still has 0 runs and 0 drafts, and its two pre-existing `zernio.*` settings rows (dated 2026-09-15) were not touched.
+| Evidence | Status |
+|----------|--------|
+| `src/public.tsx:50-58` mounts `health`, `settings`, `sources`, `fireflies`, `zernio`, `runs` after `demoIdentity` (`c.set("email", "Guest")`) and `csrf()`, with no `requireAccess` | Re-proven (file unchanged since the previous report) |
+| The file's header: "Everything the app can do, to anyone with the URL … an accepted draft can be pushed to the connected Zernio account. It shares the production database" | Re-proven |
+| `csrf()` is not authentication. Hono 4.13.7 passes a form POST when `Sec-Fetch-Site: same-origin` **or** `Origin` matches, and both are client-set. Every POST in this verification's local runs passed it with a curl-set `Origin` | Re-proven (source read, and driven) |
+| The decision route and `POST /zernio` are mounted too, so an anonymous visitor can create the "accepted" precondition and re-point `zernio.account_id` (bounded: only ids the token owns) | Re-proven (read) |
+| Guards 6-8 and the ban on publishing hold on that Worker | Re-proven (same router) |
+| The live site serves `public.tsx` | **Previously inferred. Now stated by the deploy record**: `d917c919` built with `-c wrangler.site.jsonc` (per the orchestrator). Still not observed with a request, by instruction |
+| CLAUDE.md (L21-23) and README.md (L32-34) say every non-landing route on the site hostname returns 403 | Still untrue of the code. **Left unedited, by instruction** |
+| Tracked: ROADMAP Phase 6 criterion 5; 06-07 "Close the hole the demo opened" | Re-proven |
 
-| Case | Expected | Got |
-|------|----------|-----|
-| POST with no `Origin` header | 403 | 403 |
-| Bad run id | 400 | 400 "Invalid run id" |
-| Bad draft id | 400 | 400 "Invalid draft id" |
-| No account chosen | 400 | 400 "No Zernio account chosen yet…" |
-| Unknown draft id | 404 | 404 |
-| Unknown run (valid UUID) | 404 | 404 |
-| **Cross-run draft id** | 404, target row untouched | 404, row identical |
-| Rejected draft | 400 | 400 "Only an accepted draft can go to Zernio…" |
-| Undecided draft | 400 | 400 (same) |
-| Whitespace-only `final_body` | 400 | 400 "no approved text to push" |
-| Already pushed | 400 naming the id | 400 "already in Zernio as zp_seed_already" |
-| 3001-char `final_body` | 400 naming both numbers | 400 "LinkedIn allows 3000 characters and this post is 3001…" |
-| `drafts` table after all of the above | unchanged | **unchanged** (full before/after comparison, 7 rows) |
-| Approve screen, rejected / undecided | no push control | none |
-| Approve screen, pushed | id and "unscheduled", no button | as expected |
-| **Approve screen, failed push** | error message and code, retry button | **button only, no message, no code** |
-| Run screen `/runs/:id` | (post-b954dc5: no drafts) | no push state of any kind |
-| Edit a pushed draft via the decision route | (unspecified) | 303. `final_body` changed, `zernio_post_id` kept. Page shows "Accepted with your edits" plus "In Zernio…" |
-| Reject a pushed draft via the decision route | (unspecified) | 303. Page shows "Rejected" plus "In Zernio as an unscheduled draft" |
+**Accepted exposure until 06-07:** anyone with the site URL can accept or reject any draft (which skews the APPR-05 metric), push an accepted draft into the operator's real Zernio account **as an unscheduled draft**, re-point the saved account among accounts the token owns, read stored transcripts, and spend OpenAI credit. Nothing can be **published**.
 
-**Side result relevant to Gap 2:** every guard row above went through `csrf()` because curl set `Origin` to the dev host. That is direct evidence that `csrf()` stops browsers on other sites, not clients that choose their own headers.
+### Anti-Patterns and Open Items
 
-**Not driven:** guard 3 (missing token; `.dev.vars` supplies it, verified by reading L1677-1680), and the 201 / 409 / 403 outcome branches. The plan's "local stand-in endpoint" technique does not work without a code change, because `ENDPOINT` is a module constant in `src/zernio.ts`. Those branches are verified by reading only.
-
-### Publish-Safety Pin: Mutation Results
-
-These mutants were run against a scratch copy of `src/zernio.ts` with the unmodified `test/zernio.test.ts`. The working tree's `src/zernio.ts` still matches HEAD.
-
-| Mutant | Result |
-|--------|--------|
-| Baseline | 7/7 pass |
-| `isDraft: false` | killed (2 failing) |
-| `isDraft` removed | killed (2) |
-| `publishNow: true` in `buildDraftRequest` | killed (3) |
-| `scheduledFor: new Date()…` in `buildDraftRequest` | killed (3) |
-| `queuedFromProfile` nested inside `platforms[]` | killed (3) |
-| `publishNow: true` spread into the body in `createLinkedInDraft` only | killed (1, the source-level test) |
-| `process.env` read | killed (1) |
-| `c.env` mention (even in a comment) | killed (1) |
-| `publishNow: <expression>` in `buildDraftRequest` | killed (2) |
-| **`scheduledFor: when` (a variable) spread into the body in `createLinkedInDraft` only** | **SURVIVED (7/7 pass)** |
-
-The survivor exists because the source-level regex only matches literal values (`true`, a string, or `new Date`). The shipped code has no such construct, so **the publishing ban holds today**. The pin is weaker than "by mutation" suggests for the fetch path, though.
-
-### Anti-Patterns Found
-
-| File | Line | Pattern | Severity | Impact |
+| File | Line | Pattern | Severity | Status |
 |------|------|---------|----------|--------|
-| `src/runs.tsx` | 651-827 | Orphaned components (`PushState`, `PushForm`, `DraftSection`) | 🛑 Blocker | The only failed-push renderer is dead code (Gap 1). It also makes a grep for "error rendered" look satisfied when it isn't |
-| `src/runs.tsx` | 1740, 1750 | Failure and duplicate redirects ignore `returnTo` | 🛑 Blocker (part of Gap 1) | The user is sent to a screen with no push state |
-| `src/public.tsx` | 50-58 | App routers mounted with no Access gate | 🛑 Blocker (Gap 2; owned by 06-07) | Anonymous accept and push into the real Zernio account; transcripts readable |
-| `test/zernio.test.ts` | 92 | Source regex only matches literal values | ⚠️ Warning | Mutant with `scheduledFor: <variable>` survives. Suggested fix: strip comments, then assert the three names do not appear at all |
-| `src/runs.tsx` | 2191-2197, 1529 | A pushed draft can still be edited (UI) or rejected (POST) | ⚠️ Warning | The approval record and the Zernio copy can diverge, e.g. "Rejected" beside "In Zernio". The app has no way to update or withdraw the Zernio copy, and the route refuses a re-push |
-| `src/runs.tsx` | 2172-2173 | Push button does not name the destination account | ⚠️ Warning | 05-04 Task 2 required "as {label}". Only `/zernio` shows the target now |
-| `src/runs.tsx` | 2165 | Send to Zernio offered on a >3000-char draft | ⚠️ Warning | The click lands on a bare `text/plain` 400. `PushForm`'s pre-check that prevented this is in the dead code |
-| `src/runs.tsx` | 1274-1276 | `pushTarget` computed, never used | ⚠️ Warning | Two D1 reads per Run-page render, for nothing |
-| `CLAUDE.md`, `README.md` | 21-23 / 32-34 | Public-site description contradicts `wrangler.site.example.jsonc` | ⚠️ Warning | Future work will trust the wrong safety claim (Gap 2) |
-| `src/runs.tsx` | 1024 | RunControl says "the drafts are below" | ℹ️ Info | Stale since the drafts moved to the Approve screen |
-| `src/runs.tsx` | 1707 / `src/db.ts` 851 | Check-then-act on "already pushed"; `recordPush` has no `AND zernio_post_id IS NULL` | ℹ️ Info | Two concurrent clicks could both reach Zernio. The backstop is Zernio's 24-hour content-hash 409, which is documented in the spec but never observed |
-| `src/runs.tsx` | 1616-1618 | Generic failure text promises "this cannot create a second draft" | ℹ️ Info | Rests on that same unobserved 409. Currently never rendered anyway (Gap 1) |
+| `src/runs.tsx` | — | Orphaned push components | — | **Fixed** (`822c739`) |
+| `src/runs.tsx` | 1334, 1346 | Failure and duplicate redirects ignored `returnTo` | — | **Fixed** (`e9781b1`) |
+| `src/runs.tsx` | — | Push button did not name the account | — | **Fixed** (hint names the label) |
+| `src/runs.tsx` | — | Send offered on a >3000-char draft | — | **Fixed** (the notice replaces the form) |
+| `src/runs.tsx` | — | Unused `pushTarget` reads on the Run screen | — | **Fixed** |
+| `src/public.tsx` | 50-58 | App routers mounted with no Access gate | ⏸ Deferred | 06-07, by user decision |
+| CLAUDE.md, README.md | 21-23 / 32-34 | Public-site description contradicts the code | ⚠️ Warning | Part of the deferred finding. Not edited, by instruction |
+| `test/zernio.test.ts` | 92 | Source regex only matches literal values: a mutant with `scheduledFor: <variable>` in the fetch path survives | ⚠️ Warning | Open. The shipped code has no such construct |
+| `src/runs.tsx` | 1918-1924, 1123 | A pushed draft can still be edited or rejected, and its Zernio copy will not follow | ⚠️ Warning | Open. Tracked in `.planning/todos/pending/pushed-draft-can-diverge-from-zernio.md` |
+| `src/runs.tsx` | 626, 651-652 | Run screen copy: "the drafts are below" and "The message is beside the step below". A failed **draft job's** message is rendered nowhere (a `b954dc5` regression outside Phase 5, per DRAFT-05) | ⚠️ Warning (not Phase 5) | Open. Tracked in `.planning/todos/pending/run-screen-regressions-from-broadsheet.md` |
+| `src/runs.tsx` | 775 | `ZernioNotConfigured` heading still reads "Push to Zernio" | ℹ️ Info | Page heading, not a button reference. Harmless |
+| `src/runs.tsx` / `src/db.ts` | 1301 / 851 | Check-then-act on "already pushed" | ℹ️ Info | Zernio's 24-hour content-hash 409 is the backstop. Driven against the stand-in, never seen from Zernio |
+| `src/runs.tsx` | 1209-1212 | Failure text promises "this cannot create a second draft" | ℹ️ Info | Rests on the same unobserved 409 |
 
-No TODO, FIXME or placeholder text in any Phase 5 file. `npx tsc --noEmit` exits 0 and `vitest run` exits 0 (75/75).
+No TODO, FIXME or placeholder text in Phase 5 files. `npx tsc --noEmit` exits 0 and `vitest run` exits 0 (75/75).
+
+### Publish-Safety Pin: Mutation Results (from the previous report; `src/zernio.ts` and the test are unchanged)
+
+10 of 11 mutants were killed:
+- `isDraft: false`, and `isDraft` removed
+- `publishNow` or `scheduledFor` added to `buildDraftRequest`, and `publishNow: <expression>` there
+- `queuedFromProfile` nested in `platforms[]`
+- `publishNow: true` spread in the fetch path
+- a `process.env` read, and a `c.env` mention
+
+**Survivor:** `scheduledFor: when` (a variable) spread into the body in `createLinkedInDraft` only. The ban holds today; the pin should be tightened, e.g. strip comments and then assert the three names are absent.
 
 ### Verified in Codebase vs. Observed Live
 
 | Claim | In codebase | Driven locally | Observed live |
 |-------|-------------|----------------|---------------|
-| Client cannot publish (`isDraft`, no publishing fields) | ✓ | 10/11 mutants killed | n/a (structural) |
-| `/zernio` connection and account choice | ✓ | not driven (it calls real Zernio) | **Inferred only.** The production settings row was written 2026-09-15T15:21Z. Never reported as an observation |
-| Push guards and cross-run 404 | ✓ | ✓ all except the missing-token guard | never |
-| Pushed state and Zernio id rendered | ✓ | ✓ | never (0 pushed rows in production) |
-| Failed push rendered | ✗ | ✗ confirmed absent | never |
-| `POST /v1/posts`: 201 / 409 / 403 handling | ✓ by reading | not driven (no injection point) | **never; 0 push attempts in production D1** |
-| Deployed | inferred (08:35Z, after all push commits) | — | `/health` unobserved for five deploys |
-| Push is gated on the public site Worker | ✗ `public.tsx` has no gate (re-proven) | `csrf()` passes a client-set Origin (driven) | **Inferred live, not observed**: `main = src/public.tsx`, and the live version went up 08:35:21-23Z, 5 min after `7e7e0c1`. No request was made |
-
-### Finding: the push is not gated on the public site Worker
-
-Raised by the orchestrator and re-proven here, apart from the one item marked inferred. **This does not fail the push code.** It fails the claim that only the executive can make the push.
-
-| Evidence | Status |
-|----------|--------|
-| `src/public.tsx:50-58` mounts `health`, `settings`, `sources`, `fireflies`, `zernio`, `runs` after `demoIdentity` (`c.set("email", "Guest")`, L41-44) and `csrf()`. No `requireAccess` | Re-proven (read) |
-| The file's own header (L30-33): "Everything the app can do, to anyone with the URL … an accepted draft can be pushed to the connected Zernio account. It shares the production database" | Re-proven (read) |
-| `csrf()` is not authentication: Hono 4.13.7 lets a form POST through when `Sec-Fetch-Site: same-origin` **or** `Origin` equals the request origin. Both are client-set headers | Re-proven (read `node_modules/hono/dist/middleware/csrf/index.js`, and driven with curl locally) |
-| The decision route is mounted too, so an anonymous visitor can create the "accepted" precondition as well as press the push | Re-proven (read) |
-| `POST /zernio` is reachable, so `zernio.account_id` can be changed anonymously. It is bounded: the route re-lists accounts and refuses any id the token does not own (`zernio-routes.tsx:241-244`) | Re-proven (read) |
-| Guards 6-8 (accepted/edited only, `final_body` only, once per draft) and the publishing ban hold on that Worker too: the route code is identical | Re-proven (same router) |
-| `wrangler.site.jsonc` (gitignored) and `wrangler.site.example.jsonc` both set `"main": "src/public.tsx"` for `pipeflick-site` | Re-proven (read the `name`/`main` lines only) |
-| The live `pipeflick-site` version `736c88f0` (version created 08:35:21Z, deployment 08:35:23Z) went up 5 minutes after `7e7e0c1` (08:30:03Z), and it holds `ZERNIO_USER_TOKEN` and the production D1 binding | Re-proven (`wrangler deployments list`, `versions view`) |
-| **The live site serves `public.tsx`** | **Inferred** from the two rows above. Not observed: no request was made to the public hostname, and version metadata does not name the entry point |
-| CLAUDE.md (L21-23) and README.md (L32-34) say every non-landing route on the site hostname is 403'd by `requireAccess` | Re-proven: no longer true of the code |
-| Known and scheduled: ROADMAP Phase 6 criterion 5, and 06-07 "Close the hole the demo opened" | Re-proven (read) |
-
-**Worst case, if live:** anyone with the URL can accept a draft and push it as an **unscheduled draft** into the operator's real Zernio account, re-point the saved account at another account the same token owns, flip any decision (which corrupts the APPR-05 acceptance metric), read stored transcripts (a data-protection exposure, since they are the executive's own lines from meetings), and spend OpenAI credit. Nothing can be **published**.
+| Client cannot publish | ✓ | ✓ 10/11 mutants; 7/7 captured bodies clean | n/a (structural) |
+| `/zernio` connection and account choice | ✓ | not driven (calls real Zernio) | **Inferred** from the production settings row (2026-09-15T15:21Z). Never reported |
+| Push guards, cross-run 404, stale-tab refusal | ✓ | ✓ | never |
+| Pushed state, id and time rendered | ✓ | ✓ | never (0 pushed rows in production) |
+| **Refused push rendered, with retry** | ✓ | ✓ seeded, and 403 / 409 / 500 / dropped connection through the route | never |
+| All outcomes return to the draft | ✓ | ✓ | never |
+| `final_body` sent, not `body` | ✓ | ✓ (SHA match) | never |
+| Real Zernio answers in the shapes the client parses | by reading, from the spec | stand-in only | **never: `POST /v1/posts` has not been called against zernio.com** |
+| Deployed | `67bbe1ff` / `d917c919` at 100%, 25-44 s after `e27e56f` | — | `/health` unobserved |
+| Push gated on the site Worker | ✗ | `csrf()` passes client-set Origin | Deferred to 06-07 by user decision. Site built from `public.tsx` per the deploy record |
 
 ### Human Verification Required
 
-These are still needed after the two gaps are fixed and redeployed.
-
 #### 1. The push itself (this is the whole phase)
-**Test:** On the gated app, open `/zernio` and confirm your LinkedIn account is listed and selected. On `/runs/<id>/approve`, accept a draft (unchanged, which also answers 04-02's open CRLF question: the pill should read "Accepted, unchanged"). Press **Send to Zernio**. Then open Zernio.
-**Expected:** The draft shows "In Zernio as an unscheduled draft · <id>". In Zernio the post sits under the right LinkedIn account with exactly the approved text, **not scheduled and not published**. Re-submitting from a stale tab is refused.
-**Why human:** Nothing has ever called `POST /v1/posts`. It creates a real item in a real external account.
+**Test:** On the gated app, open `/zernio` and confirm the account. On `/runs/<id>/approve`, accept a draft **unchanged** and press **Send to Zernio**. Then open Zernio.
+**Expected:** The draft shows "In Zernio as an unscheduled LinkedIn draft: not scheduled, and not published", with the id and time. In Zernio the post has exactly the approved text under the right LinkedIn account, **not scheduled and not published**. The pill reads "Accepted, unchanged". A stale-tab re-press is refused. If Zernio refuses the push, its reason and code appear beside the draft, with the button offered again.
+**Why human:** Nothing has ever called `POST /v1/posts` on zernio.com. Production has 0 decided drafts and 0 push attempts.
 
-#### 2. Which bundle is live on `pipeflick-site`
-**Test:** Unauthenticated `GET /runs` on the public hostname.
-**Expected:** `403 Access required`. A `200` means Gap 2 is live: anyone can accept and push drafts, and read transcripts.
-**Why human:** The hostname is not in the repo, and version metadata does not name the entry point.
-
-#### 3. `/health`
+#### 2. `/health`
 **Test:** Open `/health` on the gated app.
-**Expected:** Green, with all three secrets set.
-**Why human:** Access redirects before the Worker runs. Unobserved for five deploys.
+**Expected:** Green, all three secrets set.
+**Why human:** Access redirects before the Worker runs. Still unobserved after the 14:11Z deploy.
 
-### Gaps Summary
+*The previous report's check "which bundle is live on pipeflick-site" is answered by the deploy record (`d917c919` built from `src/public.tsx`, by user decision) and is no longer asked.*
 
-**The publishing ban is solid, and the push path is wired correctly.** The Zernio client cannot build a publishing request, a mutation test protects that property (with one narrow escape, noted above), the token only ever arrives as an argument, `src/db.ts` still imports nothing, ownership is the WHERE clause, and every driveable guard returned its status with D1 left untouched. The 05-04 code as committed matched its plan.
+### Summary
 
-**Gap 1 is a regression, not a 05-04 omission.** `b954dc5` rebuilt the Run and Approve screens the next morning. It removed `<DraftSection>`, which silently orphaned `PushState`, the one component that rendered a failed push, and the new Approve screen never picked that job up. The failure is still written to D1; nobody can see it. Combined with the failure redirect to `/runs/:id`, a push Zernio refuses now looks, from the executive's side, like a button that did nothing. That is exactly the "clear error" SCHED-03 and success criterion 3 ask for, so the criterion fails. The fix is small and local to `src/runs.tsx`. The reconstructed 05-04 SUMMARY describes the orphaned render as live and should not be trusted on this point.
+**Gap 1 is closed, and the closure holds up under a harder test than the one it was asked to pass.** A refused push now renders Zernio's message and code beside the draft on the Approve screen, with Send to Zernio offered again only while the draft is still accepted. Every push outcome returns the reader to that draft. That was proven three ways: from seeded rows, by driving a real 403, both 409 shapes, a 500 and a dropped connection through the route against a local stand-in, and by reading. The dead components that made the missing renderer look present are gone, with no remaining references. The push route's guards did not change. The request body 05-04 never captured is now captured, and it is draft-only and carries `final_body`. The 05-05 SUMMARY's claims matched what was re-observed here. Its "Not deployed" line has since been superseded by the 14:11Z deploys.
 
-**Gap 2 is a finding against the phase, not against the push code.** The push route, its guards and the publishing ban are the same on both Workers. What fails is who can reach them. `src/public.tsx` mounts the decision, push and `/zernio` routes with no gate, only `csrf()`, which is not authentication. So on the site Worker, "user clicks once on an accepted draft" means *anyone* accepts and anyone clicks. That the live site serves this file is **inferred** from its config and a deploy five minutes after the commit, not observed with a request. 06-07 already owns the fix. It is listed here because the exposure is probably current rather than future, and because CLAUDE.md and the README state the opposite of what the code does. **This report does not claim the push is gated. It is gated only on the `pipeflick` Worker.**
+**Gap 2 is deferred, not closed.** On the user's decision, the public site Worker stays open until 06-07. The finding and its evidence remain above, and nothing here should be read as "the push is gated" beyond the `pipeflick` Worker.
 
-**What remains even with both gaps closed:** the push has never been seen working. Production has not recorded a single accepted draft, let alone a push. Until human check 1 is answered with an observation, SCHED-02 is complete in code and unproven in fact.
+**Why the status is `human_needed` and not `passed`:** every automated check passes, but the phase goal ends at Zernio, and nothing has ever reached Zernio. Production has no decided draft and no push attempt. Until human check 1 is answered with an observation, SCHED-02 is complete in code and proven against a stand-in, not against the service.
 
 ---
 
-_Verified: 2026-09-16T12:13:21Z_
+_Verified: 2026-09-16T14:16:03Z (re-verification; previous: 2026-09-16T12:13:21Z, gaps_found)_
 _Verifier: Claude (gsd-verifier)_

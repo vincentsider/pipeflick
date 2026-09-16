@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Voice Sources** - Fireflies import keeping only the executive's lines, pasted past posts
 - [x] **Phase 3: Drafting** - Outliers to hidden templates, runs that produce three LinkedIn drafts
 - [x] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
-- [ ] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
+- [x] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
 - [ ] **Phase 6: Accounts** - Invited accounts, every row owned by one of them, and a run allowance
 - [ ] **Phase 7: Paid Credits** - Paddle checkout tops up a credit balance that runs consume
 
@@ -111,13 +111,16 @@ Plans:
   3. The draft shows its pushed state and Zernio id, and a failed push shows a clear error
 **Research**: Complete (see DISCOVERY.md, 2026-09-15) — read against the authoritative OpenAPI 3.1 spec at zernio.com/openapi.yaml, not the prose docs, which disagree with it on the draft field
 **Research topics**: Zernio API authentication (Bearer API key, `sk_` + 64 hex); `POST /v1/posts` with `isDraft: true` for an unscheduled post; `post._id` read back from the 201; whether the API is available on Vincent's plan — not answerable from documentation, and `GET /v1/accounts` on the `/zernio` page is the empirical test
-**Plans**: 4 plans in 3 waves (planned 2026-09-15; the roadmap's original estimate of 1 predates the research, which turned up a migration, a client, a connection/account page and the push path)
+**Plans**: 4 plans in 3 waves (planned 2026-09-15; the roadmap's original estimate of 1 predates the research, which turned up a migration, a client, a connection/account page and the push path). Re-verified 2026-09-16: 15/17 must-haves, 0 failed, status `human_needed` — gap 1 closed by 05-05, gap 2 (the public site Worker exposes the push) deferred to 06-07 by user decision, and the first real push to Zernio is unobserved (05-VERIFICATION.md)
 
 Plans:
-- [ ] 05-01: Zernio client and the publish-safety pin (`isDraft` asserted by test) — wave 1
-- [ ] 05-02: Migration 0006, push state stored per draft — wave 1
-- [ ] 05-03: `/zernio` connection page and LinkedIn account selection (SCHED-01) — wave 2
-- [ ] 05-04: Push button, route, pushed state, deploy and human check — wave 3
+- [x] 05-01: Zernio client and the publish-safety pin (`isDraft` asserted by test) — wave 1
+- [x] 05-02: Migration 0006, push state stored per draft — wave 1
+- [x] 05-03: `/zernio` connection page and LinkedIn account selection (SCHED-01) — wave 2
+- [x] 05-04: Push button, route, pushed state, deploy and human check — wave 3 (SUMMARY reconstructed 2026-09-16; checkpoint never answered)
+
+Gap closure (criterion 3 failed verification: `b954dc5` orphaned the only renderer of a refused push):
+- [x] 05-05: Show a refused push on the Approve screen, return there after every push, remove the orphaned components
 
 ### Phase 6: Accounts
 **Goal**: Anyone can register and use Pipeflick on their own material, with every stored row owned by exactly one account and Vincent's existing data still his
@@ -193,6 +196,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Voice Sources | 3/3 | Complete | 2026-09-15 |
 | 3. Drafting | 7/7 | Complete | 2026-09-15 |
 | 4. Approval Gate | 3/3 | Complete | 2026-09-15 |
-| 5. Zernio Push | 0/4 | Planned | - |
+| 5. Zernio Push | 5/5 | Complete | 2026-09-16 |
 | 6. Accounts | 0/7 | Planned | - |
 | 7. Paid Credits | 0/5 | Not planned | - |

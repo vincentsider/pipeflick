@@ -40,9 +40,9 @@ Requirements for the MVP text loop (LinkedIn only, Vincent's own data). Each map
 
 ### Scheduling
 
-- [ ] **SCHED-01**: App connects to Zernio with configured credentials
-- [ ] **SCHED-02**: User can push an accepted draft to Zernio as an unscheduled LinkedIn post with one click
-- [ ] **SCHED-03**: User sees whether the push succeeded, and the draft records its pushed state and Zernio id
+- [x] **SCHED-01**: App connects to Zernio with configured credentials
+- [x] **SCHED-02**: User can push an accepted draft to Zernio as an unscheduled LinkedIn post with one click
+- [x] **SCHED-03**: User sees whether the push succeeded, and the draft records its pushed state and Zernio id
 
 ### Accounts
 
@@ -155,9 +155,9 @@ Which phases cover which requirements. Updated by create-roadmap.
 | APPR-04 | Phase 4 | Complete |
 | APPR-05 | Phase 4 | Complete |
 | APPR-06 | Phase 4 | Complete |
-| SCHED-01 | Phase 5 | Pending |
-| SCHED-02 | Phase 5 | Pending |
-| SCHED-03 | Phase 5 | Pending |
+| SCHED-01 | Phase 5 | Complete |
+| SCHED-02 | Phase 5 | Complete |
+| SCHED-03 | Phase 5 | Complete |
 | ACCT-01 | Phase 6 | Pending |
 | ACCT-02 | Phase 6 | Pending |
 | ACCT-03 | Phase 6 | Pending |
@@ -181,4 +181,4 @@ Which phases cover which requirements. Updated by create-roadmap.
 
 ---
 *Requirements defined: 2026-09-14*
-*Last updated: 2026-09-15 after Phase 2 verification*
+*Last updated: 2026-09-16 after Phase 5 re-verification (SCHED-01/02/03 complete in code and against a local stand-in; the first real push to Zernio is still unobserved)*
