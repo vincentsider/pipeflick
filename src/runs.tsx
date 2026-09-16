@@ -1737,17 +1737,19 @@ runs.post("/runs/:id/drafts/:draftId/push", async (c) => {
       if (!written) {
         return c.text("Draft not found", 404);
       }
-      return c.redirect(`/runs/${runId}`, 303);
+      return c.redirect(returnTo(pushForm, runId), 303);
     }
 
     // Everything else is recorded against the draft and rendered beside it, not
-    // thrown at an error page the user navigates away from and forgets.
+    // thrown at an error page the user navigates away from and forgets. The
+    // redirect returns to that draft on the Approve screen, which is where the
+    // message is shown; the Run screen shows no push state at all.
     const { code, message } = pushFailure(error);
     const written = await recordPushFailure(c.env.DB, runId, draftId, code, message);
     if (!written) {
       return c.text("Draft not found", 404);
     }
-    return c.redirect(`/runs/${runId}`, 303);
+    return c.redirect(returnTo(pushForm, runId), 303);
   }
 });
 
@@ -1970,6 +1972,153 @@ function Evidence({
   );
 }
 
+/**
+ * An item in the action row that takes a line to itself. `.pf-actions` is a
+ * wrapping flex row, so a notice at its natural width would sit beside the pill
+ * on a wide screen and drift out of line with it. A full basis gives it its own
+ * line at every width, phone included, and the row's `gap` stands in for the
+ * notice's bottom margin.
+ */
+const OWN_LINE = "flex-basis:100%;margin:0";
+
+/**
+ * The push control: a link when no account is chosen, the two numbers when the
+ * post is too long for LinkedIn, and otherwise the button.
+ *
+ * `destination` is the chosen account's label (its id when no label was
+ * stored), or null when no account has been chosen. The route reads it once per
+ * render from settings, never per draft and never from Zernio: 05-03 stores the
+ * label beside the id for exactly this. With no account the control is a link,
+ * not a dead button, because the route would only answer 400 and the fix is on
+ * another page.
+ *
+ * The hint names where the post goes and says nothing is scheduled or
+ * published. A push is the one action on this screen that leaves the app, and
+ * "which account" and "is it live now" must never be guesses.
+ */
+function SendToZernio({
+  runId,
+  draft,
+  returnDraft,
+  destination,
+}: {
+  runId: string;
+  draft: DraftView;
+  returnDraft: number;
+  destination: string | null;
+}) {
+  if (destination === null) {
+    return (
+      <span class="hint">
+        <a href="/zernio">Choose a LinkedIn account</a> to push this.
+      </span>
+    );
+  }
+
+  // The route refuses this too. Checking here means the executive reads the two
+  // numbers instead of pressing a button that can only ever fail.
+  const length = (draft.final_body ?? "").length;
+  if (length > MAX_LINKEDIN_CHARS) {
+    return (
+      <p class="notice warn" style={OWN_LINE}>
+        {`This post is ${length} characters and LinkedIn allows ${MAX_LINKEDIN_CHARS}. Edit it to fit and accept it again, then send it to Zernio.`}
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <form
+        method="post"
+        action={`/runs/${runId}/drafts/${draft.id}/push`}
+        style="display:contents"
+      >
+        <input type="hidden" name="return_draft" value={String(returnDraft)} />
+        <button type="submit" class="btn btn-secondary">
+          Send to Zernio
+        </button>
+      </form>
+      <span class="hint">
+        {`Saves it in Zernio as an unscheduled LinkedIn draft for ${destination}. Scheduling and publishing stay manual, in Zernio.`}
+      </span>
+    </>
+  );
+}
+
+/**
+ * Where this draft stands with Zernio, as items in the Approve screen's action
+ * row. Four states, checked in this order:
+ *
+ *   1. In Zernio: the id and the time, and no button. The words say
+ *      "unscheduled" and "not published" in full. That is not padding: the
+ *      product rests on the executive seeing at a glance that pressing the
+ *      button put nothing on LinkedIn, and a bare "Pushed" leaves the costly
+ *      guess open.
+ *   2. Refused: Zernio's message and code, then the control again, so a retry
+ *      is one click. Checked before the decision, because a code with no post
+ *      id is a real state (05-02) and must never look like "not sent yet".
+ *      Amber, not red (03-03's rule): red is for a run step that failed, and a
+ *      push Zernio declined is something to try again. The control comes back
+ *      only while the draft is still accepted. A draft rejected after a failed
+ *      push keeps the message, but the route would refuse the retry, so no
+ *      button is offered.
+ *   3. Not accepted: nothing. A push control there invites exactly the mistake
+ *      the route's decision guard exists to stop.
+ *   4. Otherwise: the control.
+ *
+ * Until b954dc5 this job belonged to a component on the Run screen, which that
+ * commit stopped rendering, so a refused push showed nowhere. It lives here now
+ * because this screen is the only place a push can start.
+ */
+function ZernioStatus({
+  runId,
+  draft,
+  returnDraft,
+  destination,
+}: {
+  runId: string;
+  draft: DraftView;
+  returnDraft: number;
+  destination: string | null;
+}) {
+  if (draft.zernio_post_id !== null) {
+    return (
+      <p class="notice" style={OWN_LINE}>
+        In Zernio as an unscheduled LinkedIn draft: not scheduled, and not published.{" "}
+        <span class="hint">
+          {`Zernio id ${draft.zernio_post_id}${
+            draft.zernio_pushed_at ? ` · ${formatDateTime(draft.zernio_pushed_at)}` : ""
+          }`}
+        </span>
+      </p>
+    );
+  }
+
+  const sendable = draft.decision === "accepted" || draft.decision === "edited";
+  const control = (
+    <SendToZernio
+      runId={runId}
+      draft={draft}
+      returnDraft={returnDraft}
+      destination={destination}
+    />
+  );
+
+  if (draft.zernio_error_code !== null) {
+    return (
+      <>
+        <p class="notice warn" style={OWN_LINE}>
+          {draft.zernio_error_message ?? "Zernio did not accept this draft."}
+          <span class="hint">{` (${draft.zernio_error_code})`}</span>
+        </p>
+        {sendable ? control : ""}
+      </>
+    );
+  }
+
+  return sendable ? control : <></>;
+}
+
 runs.get("/runs/:id/approve", async (c) => {
   const id = c.req.param("id");
   if (!RUN_ID_PATTERN.test(id)) {
@@ -2032,7 +2181,6 @@ runs.get("/runs/:id/approve", async (c) => {
   const words = body.split(/\s+/).filter(Boolean).length;
   const decision = draft.decision;
   const pushed = draft.zernio_post_id !== null;
-  const canPush = decision === "accepted" || decision === "edited";
 
   const tally = {
     decided: view.drafts.filter((row) => row.decision !== null).length,
@@ -2041,7 +2189,15 @@ runs.get("/runs/:id/approve", async (c) => {
     pushed: view.drafts.filter((row) => row.zernio_post_id !== null).length,
   };
 
-  const accountId = (await getSetting(c.env.DB, ZERNIO_ACCOUNT_ID_KEY)) ?? "";
+  // Where a push would go, read once for the page and from settings, never from
+  // Zernio. Only the id decides whether a push is possible; the label is there so
+  // the control can name the account.
+  const [accountId, accountName] = await Promise.all([
+    getSetting(c.env.DB, ZERNIO_ACCOUNT_ID_KEY),
+    getSetting(c.env.DB, ZERNIO_ACCOUNT_LABEL_KEY),
+  ]);
+  const destination = accountId ? accountName || accountId : null;
+
   const prev = index > 0 ? index : written.length;
   const next = index + 2 > written.length ? 1 : index + 2;
   const action = `/runs/${id}/drafts/${draft.id}/decision`;
@@ -2089,7 +2245,7 @@ runs.get("/runs/:id/approve", async (c) => {
               <span class="tag tag-accent">{`${words} words`}</span>
               <span class="pf-draft-hint">
                 {pushed
-                  ? "Sent to Zernio as an unscheduled draft"
+                  ? "In Zernio as an unscheduled draft, not published"
                   : "A accept · E edit · R reject · ← →"}
               </span>
             </div>
@@ -2162,32 +2318,9 @@ runs.get("/runs/:id/approve", async (c) => {
                             ? "Accepted with your edits"
                             : "Rejected"}
                       </span>
-                      {canPush && !pushed && accountId !== "" ? (
-                        <form
-                          method="post"
-                          action={`/runs/${id}/drafts/${draft.id}/push`}
-                          style="display:contents"
-                        >
-                          <input type="hidden" name="return_draft" value={String(index + 1)} />
-                          <button type="submit" class="btn btn-secondary">
-                            Send to Zernio
-                          </button>
-                        </form>
-                      ) : (
-                        ""
-                      )}
-                      {canPush && !pushed && accountId === "" ? (
-                        <span class="hint">
-                          <a href="/zernio">Choose a LinkedIn account</a> to push this.
-                        </span>
-                      ) : (
-                        ""
-                      )}
-                      {pushed ? (
-                        <span class="hint">{`In Zernio as an unscheduled draft · ${draft.zernio_post_id}`}</span>
-                      ) : (
-                        ""
-                      )}
+                      {/* Edit again sits beside the decision it changes. The push
+                          state follows it: its notices take whole lines, and a
+                          link stranded after them would read as part of them. */}
                       <a
                         class="btn btn-ghost"
                         href={`/runs/${id}/approve?draft=${index + 1}&edit=1`}
@@ -2195,6 +2328,12 @@ runs.get("/runs/:id/approve", async (c) => {
                       >
                         Edit again
                       </a>
+                      <ZernioStatus
+                        runId={id}
+                        draft={draft}
+                        returnDraft={index + 1}
+                        destination={destination}
+                      />
                     </>
                   )}
                 </div>
