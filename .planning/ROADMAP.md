@@ -17,6 +17,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Drafting** - Outliers to hidden templates, runs that produce three LinkedIn drafts
 - [x] **Phase 4: Approval Gate** - Accept, edit, reject with decisions stored, history, feedback into next prompt
 - [x] **Phase 5: Zernio Push** - Accepted drafts pushed to Zernio as unscheduled LinkedIn posts
+> **18 September 2026.** The public `pipeflick-site` Worker no longer mounts the app. It serves the landing page and the pilot form only; everything else lives behind the Access-gated hostname. This was the 06-07 gap and it is done.
+
 - [ ] **Phase 6: Accounts** - Invited accounts, every row owned by one of them, and a run allowance
 - [ ] **Phase 7: Paid Credits** - Paddle checkout tops up a credit balance that runs consume
 
